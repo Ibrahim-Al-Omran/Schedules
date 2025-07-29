@@ -1,27 +1,10 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { adminDb } from '@/lib/supabase-admin';
+import { db } from '@/lib/supabase';
 
-type ShiftWithUser = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  coworkers: string;
-  notes: string | null;
-  uploaded: boolean;
-  createdAt: Date;
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-};
-
-// Configure as dynamic since it uses authentication (cookies)
+// Configure as Edge Runtime for even faster performance (optional but recommended)
+// export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 10; // Increase timeout for cold starts
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,14 +17,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch shifts for the authenticated user only using Supabase
-    const shifts = await adminDb.shifts.findMany(
+    // Fetch shifts using Supabase API (instant, no connection overhead)
+    const shifts = await db.shifts.findMany(
       { userId: authUser.userId },
-      { field: 'date', order: 'desc' }
-    ) as ShiftWithUser[];
+      { date: 'desc' }
+    );
 
     // Transform the data to match the expected format
-    const transformedShifts = shifts.map((shift: ShiftWithUser) => ({
+    const transformedShifts = shifts.map((shift: { id: string; date: string; startTime: string; endTime: string; coworkers: string; notes: string; uploaded: boolean; createdAt: string; updatedAt: string; userId?: string; user?: { id: string; name: string; email: string } }) => ({
       id: shift.id,
       date: shift.date,
       startTime: shift.startTime,
@@ -50,9 +33,9 @@ export async function GET(req: NextRequest) {
       notes: shift.notes,
       uploaded: shift.uploaded,
       createdAt: shift.createdAt,
-      userId: shift.user.id,
-      userName: shift.user.name,
-      userEmail: shift.user.email,
+      userId: shift.user?.id || shift.userId,
+      userName: shift.user?.name || '',
+      userEmail: shift.user?.email || '',
     }));
 
     return NextResponse.json({ shifts: transformedShifts });
@@ -63,7 +46,6 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-  // Removed prisma.$disconnect() - let connection pooling handle this
 }
 
 export async function POST(req: NextRequest) {
@@ -80,21 +62,20 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { date, startTime, endTime, coworkers, notes } = body;
 
-    // Validate required fields
     if (!date || !startTime || !endTime) {
       return NextResponse.json(
-        { error: 'Date, start time, and end time are required' },
+        { error: 'Missing required fields: date, startTime, endTime' },
         { status: 400 }
       );
     }
 
-    // Create new shift for the authenticated user using Supabase
-    const shift = await adminDb.shifts.create({
+    // Create shift using Supabase API
+    const shift = await db.shifts.create({
       date,
       startTime,
       endTime,
       coworkers: coworkers || '',
-      notes: notes || '',
+      notes: notes || null,
       uploaded: false,
       userId: authUser.userId,
     });

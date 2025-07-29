@@ -1,18 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --background-light: #ffffff; /* Light mode background */
+  --background-light: #FCF5ED; /* Warm beige background */
   --foreground-light: #333333; /* Dark gray text */
   --foreground-secondary: #666666; /* Secondary gray text */
   --accent-light: #E7D8FF; /* Updated light purple accent */
   --border-light: #C8A5FF; /* Updated border color */
   --font-mono: "JetBrains Mono", monospace;
+  
+  /* Dark mode variables */
+  --background-dark: #1A1A1A; /* Very dark background */
+  --foreground-dark: #FFFFFF; /* White text */
+  --foreground-dark-secondary: #B0B0B0; /* Light gray text */
+  --accent-dark: #8B7AA8; /* Muted purple accent */
+  --border-dark: #555; /* Dark gray border */
 }
 
 body {
   background: var(--background-light);
   color: var(--foreground-light);
   font-family: var(--font-mono);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode styles */
+html.dark body {
+  background: var(--background-dark);
+  color: var(--foreground-dark);
 }
 
 button {
@@ -31,12 +45,18 @@ button:hover {
 button.mobile-friendly {
   padding: 0.5rem 1rem; /* Match other buttons */
   font-size: 0.875rem; /* Match other buttons */
-  border-radius: 2rem; /* Keep rounded corners consistent */
+  border-radius: 1rem; /* Rounded on mobile */
   background-color: var(--accent-light);
   border: 1px solid var(--border-light);
   color: var(--foreground-light);
   transition: transform 0.2s ease, background-color 0.2s ease;
   white-space: nowrap; /* Prevent text wrapping */
+}
+
+@media (min-width: 640px) {
+  button.mobile-friendly {
+    border-radius: 2rem; /* More rounded on desktop */
+  }
 }
 
 button.mobile-friendly:hover {
@@ -45,6 +65,16 @@ button.mobile-friendly:hover {
 
 button.mobile-friendly span.mobile-only {
   display: none; /* Hide mobile-only text by default */
+}
+
+/* Blinking cursor animation */
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
 }
 
 @media (max-width: 640px) {

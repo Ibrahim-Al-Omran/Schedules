@@ -1,16 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { prisma, executeWithRetry, warmupConnection } from '@/lib/prisma';
+import jwt from 'jsonwebtoken';
+import { adminDb } from '@/lib/supabase-admin';
 
-export async function POST(req: Request) {
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+export async function POST(request: NextRequest) {
   try {
-    // Warm up database connection for serverless cold starts
-    await warmupConnection();
-    
-    const body = await req.json();
+    const body = await request.json();
     const { name, email, password } = body;
 
-    // Validate required fields
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: 'Name, email, and password are required' },
@@ -18,17 +17,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already exists using Prisma ORM
-    const existingUser = await executeWithRetry(async () => {
-      return await prisma.user.findUnique({
-        where: { email },
-        select: { id: true }
-      });
-    });
+    // Check if user already exists
+    const existingUser = await adminDb.users.findByEmail(email.toLowerCase());
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'User already exists' },
         { status: 400 }
       );
     }
@@ -36,36 +30,33 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user using Prisma ORM
-    const user = await executeWithRetry(async () => {
-      return await prisma.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          createdAt: true,
-        }
-      });
+    // Create user
+    const user = await adminDb.users.create({
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword
     });
 
-    return NextResponse.json(
-      { 
-        message: 'User created successfully',
-        user 
-      },
-      { status: 201 }
+    // Generate JWT
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
     );
+
+    return NextResponse.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      }
+    });
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
-      { error: 'Failed to create user' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
-  // Removed prisma.$disconnect() - let connection pooling handle this
 }

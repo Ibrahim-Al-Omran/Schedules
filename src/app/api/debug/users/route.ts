@@ -1,43 +1,35 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
   try {
     console.log('Testing user queries...');
     
-    // Test database connection
-    await prisma.$connect();
     console.log('Database connected successfully');
     
     // Get all users (but limit sensitive data)
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        updatedAt: true,
-        // Don't include password for security
-      },
-      take: 10 // Limit to first 10 users
-    });
+    const { data: users, error: usersError } = await supabaseAdmin
+      .from('User')
+      .select('id, name, email, createdAt, updatedAt')
+      .limit(10);
     
-    console.log(`Found ${users.length} users`);
+    if (usersError) throw usersError;
+    
+    console.log(`Found ${users?.length || 0} users`);
     
     // Test specific email search (using a common test pattern)
     const testEmail = 'test@example.com'; // You can change this
-    const testUser = await prisma.user.findUnique({
-      where: { email: testEmail },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      }
-    });
+    const { data: testUser, error: testError } = await supabaseAdmin
+      .from('User')
+      .select('id, name, email')
+      .eq('email', testEmail)
+      .single();
+    
+    if (testError && testError.code !== 'PGRST116') throw testError;
     
     return NextResponse.json({
       status: 'Success',
-      totalUsers: users.length,
+      totalUsers: users?.length || 0,
       users: users,
       testEmailSearch: {
         email: testEmail,
@@ -60,7 +52,5 @@ export async function GET() {
       }, 
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

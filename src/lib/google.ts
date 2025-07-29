@@ -61,9 +61,17 @@ function getRedirectUri(): string {
   return `${getBaseUrl()}/api/google/callback`;
 }
 
-export function getGoogleCalendarClient(authToken: string) {
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: authToken });
+export function getGoogleCalendarClient(authToken: string, refreshToken?: string) {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    getRedirectUri()
+  );
+  
+  oauth2Client.setCredentials({ 
+    access_token: authToken,
+    refresh_token: refreshToken
+  });
 
   return google.calendar({ version: 'v3', auth: oauth2Client });
 }

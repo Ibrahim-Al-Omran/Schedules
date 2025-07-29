@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { adminDb } from '@/lib/supabase-admin';
 import { getAuthUser } from '@/lib/auth';
 
 // Configure as dynamic since it uses authentication (cookies)
@@ -14,12 +14,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Clear Google Calendar connection for the user
-    await prisma.user.update({
-      where: { id: authUser.userId },
-      data: {
-        googleAccessToken: null,
-        googleRefreshToken: null,
-      },
+    await adminDb.users.update(authUser.userId, {
+      googleAccessToken: null,
+      googleRefreshToken: null,
     });
 
     return NextResponse.json({ message: 'Google Calendar disconnected successfully' });

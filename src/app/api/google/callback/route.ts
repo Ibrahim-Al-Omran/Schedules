@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { prisma, executeWithRetry } from '@/lib/prisma';
+import { adminDb } from '@/lib/supabase-admin';
 
 // Configure as dynamic since it uses authentication (cookies)
 export const dynamic = 'force-dynamic';
@@ -42,15 +42,10 @@ export async function GET(request: NextRequest) {
     
     const { tokens } = await oauth2Client.getToken(code);
     
-    // Store the tokens in the database using Prisma ORM
-    await executeWithRetry(async () => {
-      return await prisma.user.update({
-        where: { id: authUser.userId },
-        data: {
-          googleAccessToken: tokens.access_token || null,
-          googleRefreshToken: tokens.refresh_token || null,
-        }
-      });
+    // Store the tokens in the database using Supabase
+    await adminDb.users.update(authUser.userId, {
+      googleAccessToken: tokens.access_token || null,
+      googleRefreshToken: tokens.refresh_token || null,
     });
     
     return NextResponse.redirect(new URL('/dashboard?google_connected=true', request.url));

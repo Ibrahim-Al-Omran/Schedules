@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 // Use edge runtime when possible for instant response
 export const maxDuration = 10;
@@ -9,7 +9,12 @@ export async function GET() {
   
   try {
     // Optimized warmup - test connection with minimal query
-    const result = await prisma.$queryRaw`SELECT 1 as warmup, NOW() as db_time`;
+    const { error } = await supabaseAdmin
+      .from('User')
+      .select('id')
+      .limit(1);
+    
+    if (error) throw error;
     
     const responseTime = Date.now() - startTime;
     
@@ -17,7 +22,6 @@ export async function GET() {
       status: 'Database warmed up successfully',
       responseTime: `${responseTime}ms`,
       timestamp: new Date().toISOString(),
-      dbResult: result,
       runtime: 'nodejs'
     });
   } catch (error) {

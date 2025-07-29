@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getGoogleOAuth2Client } from '@/lib/google';
 
 export async function GET(request: NextRequest) {
   try {

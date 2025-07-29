@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Shift } from '@/types/shift';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ShiftFormProps {
   onShiftAdded: (shift: Shift) => void;
@@ -9,6 +10,7 @@ interface ShiftFormProps {
 }
 
 export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     date: '',
     startTime: '',
@@ -83,29 +85,33 @@ export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
           Date
         </label>
         <input
           type="date"
           value={formData.date}
           onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-          className="w-full px-3 py-2 border rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 text-gray-800"
-          style={{ borderColor: '#C8A5FF' }}
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
           required
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
             Start Time
           </label>
           <select
             value={formData.startTime}
             onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 text-gray-800"
-            style={{ borderColor: '#C8A5FF' }}
+            className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+              theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+            }`}
+            style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
             required
           >
             <option value="">Select time</option>
@@ -117,14 +123,16 @@ export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
             End Time
           </label>
           <select
             value={formData.endTime}
             onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 text-gray-800"
-            style={{ borderColor: '#C8A5FF' }}
+            className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+              theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+            }`}
+            style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
             required
           >
             <option value="">Select time</option>
@@ -138,7 +146,7 @@ export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
           Coworkers
         </label>
         <input
@@ -146,13 +154,15 @@ export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
           value={formData.coworkers}
           onChange={(e) => setFormData(prev => ({ ...prev, coworkers: e.target.value }))}
           placeholder="Enter coworker names (comma-separated)"
-          className="w-full px-3 py-2 border rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 text-gray-800"
-          style={{ borderColor: '#C8A5FF' }}
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
           Notes
         </label>
         <textarea
@@ -160,13 +170,15 @@ export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
           onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
           placeholder="Any additional notes about this shift"
           rows={3}
-          className="w-full px-3 py-2 border rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 text-gray-800"
-          style={{ borderColor: '#C8A5FF' }}
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
         />
       </div>
 
       {error && (
-        <div className="border rounded-4xl text-red-700 px-4 py-3" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
+        <div className="border rounded-xl sm:rounded-4xl text-red-700 px-4 py-3" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
           {error}
         </div>
       )}
@@ -175,16 +187,20 @@ export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 text-gray-700 py-2 px-4 rounded-4xl transition-colors disabled:opacity-50 border hover:bg-gray-100"
-          style={{ backgroundColor: '#E7D8FF', borderColor: '#C8A5FF' }}
+          className={`flex-1 py-2 px-4 rounded-xl sm:rounded-4xl transition-colors disabled:opacity-50 border ${
+            theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+          style={{ backgroundColor: '#E7D8FF', borderColor: theme === 'dark' ? '#666' : '#C8A5FF' }}
         >
           {loading ? 'Creating...' : 'Create Shift'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 text-gray-700 py-2 px-4 rounded-4xl transition-colors border hover:bg-gray-100"
-          style={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db' }}
+          className={`flex-1 py-2 px-4 rounded-xl sm:rounded-4xl transition-colors border ${
+            theme === 'dark' ? 'text-white bg-gray-600 hover:bg-gray-500' : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#666' : '#d1d5db' }}
         >
           Cancel
         </button>

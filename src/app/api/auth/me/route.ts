@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { adminDb } from '@/lib/supabase-admin';
 
 // Configure route as dynamic since it uses cookies
 export const dynamic = 'force-dynamic';
@@ -17,17 +17,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get user with Google token status using Prisma ORM
-    const user = await prisma.user.findUnique({
-      where: { id: authUser.userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        googleAccessToken: true,
-        googleRefreshToken: true,
-      }
-    });
+    // Get user with Google token status using Supabase
+    const user = await adminDb.users.findById(authUser.userId);
 
     if (!user) {
       return NextResponse.json(

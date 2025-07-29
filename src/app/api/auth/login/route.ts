@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma, executeWithRetry, warmupConnection } from '@/lib/prisma';
+import { adminDb } from '@/lib/supabase-admin';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -13,9 +13,6 @@ export async function POST(req: Request) {
   const startTime = Date.now();
   
   try {
-    // Warm up database connection for serverless cold starts
-    await warmupConnection();
-    
     const body = await req.json();
     const { email, password } = body;
 
@@ -27,28 +24,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Single optimized query - combine user lookup with minimal logging
-    const user = await executeWithRetry(async () => {
-      return await prisma.user.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          password: true,
-        }
-      });
-    });
+    // Find user using Supabase
+    console.log('Attempting to find user with email:', email);
+    
+    let user;
+    try {
+      user = await adminDb.users.findByEmail(email);
+      console.log('User query result:', user ? 'User found' : 'User not found');
+    } catch (dbError) {
+      console.error('Database error details:', dbError);
+      throw dbError;
+    }
 
     if (!user) {
-      // Don't do expensive debugging queries in production
-      if (process.env.NODE_ENV === 'development') {
-        const totalUsers = await executeWithRetry(async () => {
-          return await prisma.user.count();
-        });
-        console.log('Total users in database:', totalUsers);
-      }
-      
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }

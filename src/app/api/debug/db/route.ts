@@ -1,27 +1,26 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
   try {
     console.log('Testing database connection...');
     
-    // Test basic connection
-    await prisma.$connect();
     console.log('Database connected successfully');
     
     // Test simple query
-    const userCount = await prisma.user.count();
-    console.log(`Found ${userCount} users in database`);
+    const { count, error: countError } = await supabaseAdmin
+      .from('User')
+      .select('*', { count: 'exact', head: true });
     
-    // Test raw query to ensure database is accessible
-    const result = await prisma.$queryRaw`SELECT 1 as test`;
-    console.log('Raw query test:', result);
+    if (countError) throw countError;
+    
+    console.log(`Found ${count} users in database`);
     
     return NextResponse.json({
       status: 'Database connection successful',
-      userCount,
-      rawQueryTest: result,
-      timestamp: new Date().toISOString()
+      userCount: count,
+      timestamp: new Date().toISOString(),
+      api: 'supabase-rest-api'
     });
   } catch (error) {
     console.error('Database connection error:', error);
@@ -34,7 +33,5 @@ export async function GET() {
       }, 
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { getGoogleCalendarClient } from '@/lib/google';
-import { prisma } from '@/lib/prisma';
+import { adminDb } from '@/lib/supabase-admin';
 
 // Configure as dynamic since it uses authentication (cookies)
 export const dynamic = 'force-dynamic';
@@ -15,16 +15,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's Google access token
-    const user = await prisma.user.findUnique({
-      where: { id: authUser.userId },
-      select: { googleAccessToken: true }, // Replace 'googleAccessToken' with the actual field name from your Prisma schema, e.g., 'googleToken' or similar
-    });
+    const user = await adminDb.users.findById(authUser.userId);
 
     if (!user || !user.googleAccessToken) {
       return NextResponse.json({ error: 'Google Calendar not connected.' }, { status: 400 });
     }
 
-    const calendar = getGoogleCalendarClient(user.googleAccessToken);
+    const calendar = getGoogleCalendarClient(user.googleAccessToken, user.googleRefreshToken);
     const { data } = await calendar.calendarList.list();
 
     if (!data.items) {
@@ -37,8 +34,11 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ calendars });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching calendars:', error);
-    return NextResponse.json({ error: 'Failed to fetch calendars.' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to fetch calendars.', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }

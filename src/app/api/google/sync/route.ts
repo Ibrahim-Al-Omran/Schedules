@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { getGoogleCalendarClient, CalendarEvent } from '@/lib/google';
-import { prisma } from '@/lib/prisma';
+import { adminDb, supabaseAdmin } from '@/lib/supabase-admin';
 
 // Configure as dynamic since it uses authentication (cookies)
 export const dynamic = 'force-dynamic';
@@ -38,14 +38,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's Google access token using Prisma ORM
-    const user = await prisma.user.findUnique({
-      where: { id: authUser.userId },
-      select: {
-        googleAccessToken: true,
-        googleRefreshToken: true,
-      }
-    });
+    // Get user's Google access token using Supabase
+    const user = await adminDb.users.findById(authUser.userId);
 
     if (!user || !user.googleAccessToken) {
       return NextResponse.json(
@@ -54,25 +48,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's shifts that haven't been uploaded yet using Prisma ORM
-    const shifts = await prisma.shift.findMany({
-      where: {
-        userId: authUser.userId,
-        uploaded: false,
-      },
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        coworkers: true,
-        notes: true,
-        uploaded: true,
-      },
-      orderBy: { date: 'asc' }
-    });
+    // Get user's shifts that haven't been uploaded yet using Supabase
+    const { data: shifts, error: shiftsError } = await supabaseAdmin
+      .from('Shift')
+      .select('id, date, startTime, endTime, coworkers, notes, uploaded')
+      .eq('userId', authUser.userId)
+      .eq('uploaded', false)
+      .order('date', { ascending: true });
 
-    if (shifts.length === 0) {
+    if (shiftsError) throw shiftsError;
+
+    if (!shifts || shifts.length === 0) {
       return NextResponse.json(
         { message: 'All shifts have already been synced to Google Calendar' },
         { status: 200 }
@@ -116,11 +102,8 @@ export async function POST(request: NextRequest) {
           requestBody: event
         });
 
-        // Mark shift as uploaded in the database using Prisma ORM
-        await prisma.shift.update({
-          where: { id: shift.id },
-          data: { uploaded: true }
-        });
+        // Mark shift as uploaded in the database using Supabase
+        await adminDb.shifts.update(shift.id, { uploaded: true });
 
         createdEvents++;
       } catch (eventError) {
@@ -142,8 +125,6 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to sync with Google Calendar' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

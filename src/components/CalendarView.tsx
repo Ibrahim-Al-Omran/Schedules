@@ -1,11 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Shift } from '@/types/shift';
+import gsap from 'gsap';
+import { useTheme } from '@/contexts/ThemeContext';
+
+// Configure GSAP for 120fps (high refresh rate displays)
+gsap.ticker.fps(120);
 
 interface CalendarViewProps {
   shifts: Shift[];
   onDeleteShift?: (shiftId: string) => void;
+  onUpdateShift?: (shiftId: string, updatedShift: Shift) => void;
 }
 
 interface CalendarDay {
@@ -23,18 +29,32 @@ interface CoworkerData {
   overlapEnd?: string;
 }
 
-export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProps) {
+export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: CalendarViewProps) {
+  const { theme } = useTheme();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
   const [modalContent, setModalContent] = useState<React.ReactElement | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
+  const [shiftToEdit, setShiftToEdit] = useState<Shift | null>(null);
+  const [draggedShift, setDraggedShift] = useState<Shift | null>(null);
+  // Mobile-first: default to week view on mobile, month on desktop
+  const [viewMode, setViewMode] = useState<'month' | 'week'>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 640 ? 'week' : 'month';
+    }
+    return 'month';
+  });
+  const modalRef = useRef<HTMLDivElement>(null);
+  const dayModalRef = useRef<HTMLDivElement>(null);
+  const deleteModalRef = useRef<HTMLDivElement>(null);
+  const editModalRef = useRef<HTMLDivElement>(null);
 
   // Get today's date in local timezone
   const today = new Date();
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  // Generate calendar days
+  // Generate calendar days for month view
   const generateCalendarDays = (): CalendarDay[] => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -58,10 +78,12 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
     while (currentDay <= endDate) {
       const dateStr = currentDay.toISOString().split('T')[0];
       const dayShifts = shifts.filter(shift => shift.date === dateStr);
+      const dayMonth = currentDay.getMonth();
       
       days.push({
         date: dateStr,
-        isCurrentMonth: currentDay.getMonth() === month,
+        // Mark as current month ONLY if the day is in the current month
+        isCurrentMonth: dayMonth === month,
         shifts: dayShifts,
         isToday: dateStr === todayString,
       });
@@ -72,7 +94,50 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
     return days;
   };
 
-  const calendarDays = generateCalendarDays();
+  // Generate week days for week view
+  const generateWeekDays = (): CalendarDay[] => {
+    const days: CalendarDay[] = [];
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayShifts = shifts.filter(shift => shift.date === dateStr);
+      
+      days.push({
+        date: dateStr,
+        isCurrentMonth: date.getMonth() === currentDate.getMonth(),
+        shifts: dayShifts,
+        isToday: dateStr === todayString,
+      });
+    }
+    
+    return days;
+  };
+
+  const calendarDays = viewMode === 'week' ? generateWeekDays() : generateCalendarDays();
+  const calendarGridRef = useRef<HTMLDivElement>(null);
+
+  // Animate calendar days on mount and month change (optimized for 120fps)
+  useEffect(() => {
+    if (calendarGridRef.current) {
+      const days = calendarGridRef.current.querySelectorAll('.calendar-day');
+      gsap.fromTo(
+        days,
+        { opacity: 0, y: 10 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.25,
+          stagger: 0.008,
+          ease: 'power2.out',
+          force3D: true // GPU acceleration
+        }
+      );
+    }
+  }, [currentDate, shifts]);
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setIsTransitioning(true);
@@ -165,7 +230,7 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
             <ul className="space-y-2 mt-3">
               {overlappingCoworkers.map((coworker, idx: number) => (
                 <li key={idx} className="border-l-4 pl-3" style={{ borderColor: '#E7D8FF' }}>
-                  <div className="font-bold text-gray-800 text-base">
+                  <div className="font-bold text-base text-gray-800">
                     {coworker.name?.split(' ')[0] || coworker.name}
                   </div>
                   <div className="text-sm text-gray-500">
@@ -180,7 +245,7 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
     } catch {
       // Fallback for non-JSON coworkers
       if (coworkers) {
-        coworkerList = <p className="text-gray-600 mt-2">{coworkers}</p>;
+        coworkerList = <p className="mt-2 text-gray-600">{coworkers}</p>;
       }
     }
 
@@ -203,7 +268,7 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
         )}
         {coworkerList && (
           <div>
-            <div className="text-sm font-medium text-gray-700 mb-1">Working with you:</div>
+            <div className="text-sm font-medium mb-1 text-gray-700">Working with you:</div>
             {coworkerList}
           </div>
         )}
@@ -215,23 +280,137 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
     setModalContent(
       <div className="modal">
         {renderShift(shift)}
-        {/* Delete Button */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <button
-            onClick={() => {
-              setModalContent(null);
-              setShiftToDelete(shift);
-            }}
-            className="w-full px-4 py-2 text-white bg-red-500 hover:bg-red-600 rounded-4xl transition-colors"
-            style={{ backgroundColor: '#FDE2E2', 
-                  borderColor: '#F5A5A5'}}
-          >
-            Delete Shift
-          </button>
+        {/* Edit and Delete Buttons */}
+        <div className="mt-4 pt-4 border-t" style={{ borderColor: theme === 'dark' ? '#555' : '#E5E7EB' }}>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                closeModalWithAnimation(() => {
+                  setModalContent(null);
+                  setShiftToEdit(shift);
+                });
+              }}
+              className={`flex-1 px-4 py-2 rounded-xl sm:rounded-4xl transition-colors ${
+                theme === 'dark' ? 'text-white bg-blue-600 hover:bg-blue-700' : 'text-white bg-blue-500 hover:bg-blue-600'
+              }`}
+            >
+              Edit Shift
+            </button>
+            <button
+              onClick={() => {
+                closeModalWithAnimation(() => {
+                  setModalContent(null);
+                  setShiftToDelete(shift);
+                });
+              }}
+              className="flex-1 px-4 py-2 text-white bg-red-500 hover:bg-red-600 rounded-xl sm:rounded-4xl transition-colors"
+            >
+              Delete Shift
+            </button>
+          </div>
         </div>
       </div>
     );
   };
+
+  // Helper function to close modals with animation
+  const closeModalWithAnimation = (callback?: () => void) => {
+    const target = modalRef.current || dayModalRef.current || deleteModalRef.current;
+    if (target) {
+      gsap.to(target, {
+        opacity: 0,
+        scale: 0.8,
+        y: 20,
+        duration: 0.2,
+        ease: 'power2.in',
+        onComplete: () => {
+          if (callback) callback();
+          else {
+            setModalContent(null);
+            setSelectedDay(null);
+            setShiftToDelete(null);
+          }
+        }
+      });
+    } else {
+      if (callback) callback();
+      else {
+        setModalContent(null);
+        setSelectedDay(null);
+        setShiftToDelete(null);
+      }
+    }
+  };
+
+  // Animate modal entrance (optimized for 120fps)
+  useEffect(() => {
+    if (modalContent && modalRef.current) {
+      gsap.fromTo(
+        modalRef.current,
+        { opacity: 0, scale: 0.8, y: 20 },
+        { 
+          opacity: 1, 
+          scale: 1, 
+          y: 0, 
+          duration: 0.25, 
+          ease: 'back.out(1.7)',
+          force3D: true // GPU acceleration
+        }
+      );
+    }
+  }, [modalContent]);
+
+  // Animate day modal entrance (optimized for 120fps)
+  useEffect(() => {
+    if (selectedDay && dayModalRef.current) {
+      gsap.fromTo(
+        dayModalRef.current,
+        { opacity: 0, scale: 0.8, y: 20 },
+        { 
+          opacity: 1, 
+          scale: 1, 
+          y: 0, 
+          duration: 0.25, 
+          ease: 'back.out(1.7)',
+          force3D: true // GPU acceleration
+        }
+      );
+    }
+  }, [selectedDay]);
+
+  // Animate delete modal entrance (optimized for 120fps)
+  useEffect(() => {
+    if (shiftToDelete && deleteModalRef.current) {
+      gsap.fromTo(
+        deleteModalRef.current,
+        { opacity: 0, scale: 0.8 },
+        { 
+          opacity: 1, 
+          scale: 1, 
+          duration: 0.25, 
+          ease: 'back.out(1.7)',
+          force3D: true // GPU acceleration
+        }
+      );
+    }
+  }, [shiftToDelete]);
+
+  // Animate edit modal entrance (optimized for 120fps)
+  useEffect(() => {
+    if (shiftToEdit && editModalRef.current) {
+      gsap.fromTo(
+        editModalRef.current,
+        { opacity: 0, scale: 0.8 },
+        { 
+          opacity: 1, 
+          scale: 1, 
+          duration: 0.25, 
+          ease: 'back.out(1.7)',
+          force3D: true // GPU acceleration
+        }
+      );
+    }
+  }, [shiftToEdit]);
 
   const confirmDelete = () => {
     if (shiftToDelete && onDeleteShift && shiftToDelete.id) {
@@ -240,8 +419,69 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
     setShiftToDelete(null);
   };
 
-  const cancelDelete = () => {
-    setShiftToDelete(null);
+  // Handle drag and drop
+  const handleDragStart = (e: React.DragEvent, shift: Shift) => {
+    e.stopPropagation();
+    setDraggedShift(shift);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDate: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedShift || !draggedShift.id) return;
+    
+    // Don't do anything if dropped on same date
+    if (draggedShift.date === targetDate) {
+      setDraggedShift(null);
+      return;
+    }
+    
+    const originalDate = draggedShift.date;
+    const updatedShift = { ...draggedShift, date: targetDate };
+    
+    // Optimistically update UI immediately
+    if (onUpdateShift) {
+      onUpdateShift(draggedShift.id, updatedShift);
+    }
+    
+    setDraggedShift(null);
+    
+    try {
+      // Update shift date in database in the background
+      const response = await fetch(`/api/shifts/${draggedShift.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...draggedShift,
+          date: targetDate,
+        }),
+      });
+      
+      if (!response.ok) {
+        // If API call fails, revert the change
+        console.error('Failed to move shift, reverting...');
+        if (onUpdateShift) {
+          onUpdateShift(draggedShift.id, { ...updatedShift, date: originalDate });
+        }
+      }
+    } catch (error) {
+      console.error('Error moving shift:', error);
+      // Revert on error
+      if (onUpdateShift) {
+        onUpdateShift(draggedShift.id, { ...updatedShift, date: originalDate });
+      }
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedShift(null);
   };
 
   useEffect(() => {
@@ -271,97 +511,182 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
   }, []);
 
   return (
-    <div className="p-2 sm:p-3 md:p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       {/* Calendar Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-3 sm:mb-4 md:mb-6 gap-2 sm:gap-4">
-        <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800">
-          {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-semibold" style={{ color: theme === 'dark' ? '#FFFFFF' : '#1F2937' }}>
+          <span style={{ color: theme === 'dark' ? '#FFFFFF' : '#1F2937' }}>
+            {viewMode === 'week' ? 'Week of ' : ''}{monthNames[currentDate.getMonth()]} {viewMode === 'week' && currentDate.getDate() + ', '}{currentDate.getFullYear()}
+          </span>
         </h2>
-        <div className="flex space-x-1 sm:space-x-2">
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          {/* View Mode Toggle */}
+          <div className="flex rounded-xl sm:rounded-4xl border overflow-hidden" style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}>
+            <button
+              onClick={() => setViewMode('month')}
+              className="px-3 py-1.5 text-xs sm:text-sm transition-all hover:bg-opacity-80"
+              style={{ 
+                backgroundColor: viewMode === 'month' 
+                  ? '#E7D8FF' 
+                  : (theme === 'dark' ? '#2A2A2A' : 'white'),
+                borderColor: 'transparent',
+                color: viewMode === 'month'
+                  ? '#000000'
+                  : (theme === 'dark' ? 'white' : '#4B5563')
+              }}
+            >
+              Month
+            </button>
+            <button
+              onClick={() => setViewMode('week')}
+              className="px-3 py-1.5 text-xs sm:text-sm transition-all hover:bg-opacity-80"
+              style={{ 
+                backgroundColor: viewMode === 'week' 
+                  ? '#E7D8FF' 
+                  : (theme === 'dark' ? '#2A2A2A' : 'white'),
+                borderColor: 'transparent',
+                color: viewMode === 'week'
+                  ? '#000000'
+                  : (theme === 'dark' ? 'white' : '#4B5563')
+              }}
+            >
+              Week
+            </button>
+          </div>
+          
+          <div className="flex space-x-1 sm:space-x-2">
           <button
             onClick={() => navigateMonth('prev')}
-            className="p-1.5 sm:p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all border border-gray-300"
+            className="p-1.5 sm:p-2 rounded-lg transition-all"
             style={{ 
               backgroundColor: 'transparent', 
-              borderColor: 'transparent' 
+              borderColor: 'transparent',
+              color: theme === 'dark' ? 'white' : '#4B5563'
             }}
           >
             ←
           </button>
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-all border border-gray-300"
+            className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg transition-all"
             style={{ 
               backgroundColor: 'transparent', 
-              borderColor: 'transparent' 
+              borderColor: 'transparent',
+              color: theme === 'dark' ? 'white' : '#4B5563'
             }}
           >
             Today
           </button>
           <button
             onClick={() => navigateMonth('next')}
-            className="p-1.5 sm:p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all border border-gray-300"
+            className="p-1.5 sm:p-2 rounded-lg transition-all"
             style={{ 
               backgroundColor: 'transparent', 
-              borderColor: 'transparent' 
+              borderColor: 'transparent',
+              color: theme === 'dark' ? 'white' : '#4B5563'
             }}
           >
             →
           </button>
         </div>
+        </div>
       </div>
 
-      {/* Calendar Grid */}
-      <div className={`grid grid-cols-7 gap-px bg-gray-200 transition-opacity duration-200 ${isTransitioning ? 'opacity-50' : 'opacity-100'}`}>
+      {/* Calendar Grid - Grid-like with inner borders only */}
+      <div ref={calendarGridRef} className={`grid grid-cols-7 transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-50' : 'opacity-100'} overflow-hidden rounded-2xl sm:rounded-4xl`}>
         {/* Day headers */}
-        {dayNames.map(day => (
-          <div key={day} className="p-1 sm:p-2 text-center text-xs sm:text-sm font-medium text-gray-500 bg-white">
-            <span className="hidden sm:inline">{day}</span>
-            <span className="sm:hidden">{day.slice(0, 1)}</span>
+        {dayNames.map((day, idx) => (
+          <div 
+            key={day} 
+            className={`p-2 sm:p-3 text-center text-sm sm:text-base font-semibold ${idx < 6 ? 'border-r' : ''} border-b`}
+            style={{ 
+              backgroundColor: theme === 'dark' ? '#1A1A1A' : '#FCF5ED', 
+              borderColor: theme === 'dark' ? '#555' : '#C8A5FF',
+              color: theme === 'dark' ? 'white' : '#374151'
+            }}
+          >
+            <span className="hidden sm:inline" style={{ color: theme === 'dark' ? 'white' : '#374151' }}>{day}</span>
+            <span className="sm:hidden" style={{ color: theme === 'dark' ? 'white' : '#374151' }}>{day.slice(0, 1)}</span>
           </div>
         ))}
 
         {/* Calendar days */}
-        {calendarDays.map((day, index) => (
-          <div
-            key={index}
-            className={`min-h-16 sm:min-h-20 md:min-h-28 lg:min-h-32 p-1 sm:p-2 cursor-pointer hover:bg-gray-50 bg-white relative ${
-              !day.isCurrentMonth ? 'bg-gray-100 text-gray-400' : ''
-            }`}
-            onClick={() => setSelectedDay(day)}
-          >
-            <div className={`text-xs sm:text-sm font-medium ${
-              day.isToday 
-                ? 'text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 flex items-center justify-center mx-auto text-xs' 
-                : 'text-gray-800'
-            }`}
-            style={day.isToday ? { backgroundColor: '#C8A5FF' } : {}}
+        {calendarDays.map((day, index) => {
+          const isRightEdge = (index + 1) % 7 === 0;
+          const isBottomEdge = index >= calendarDays.length - 7;
+          
+          return (
+            <div
+              key={index}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, day.date)}
+              className={`calendar-day ${viewMode === 'week' ? 'min-h-48 sm:min-h-56 md:min-h-64 lg:min-h-72' : 'min-h-24 sm:min-h-28 md:min-h-36 lg:min-h-40'} p-2 sm:p-3 cursor-pointer relative transition-all duration-500 ease-in-out ${
+                !isRightEdge ? 'border-r' : ''
+              } ${!isBottomEdge ? 'border-b' : ''} ${
+                !day.isCurrentMonth ? 'opacity-30' : ''
+              } ${
+                theme === 'dark' 
+                  ? 'bg-[#3A3A3A] hover:bg-[#4A4A4A]' 
+                  : 'bg-white hover:bg-gray-50'
+              }`}
+              style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+              onClick={() => setSelectedDay(day)}
             >
-              {new Date(day.date + 'T00:00:00').getDate()}
-            </div>
-            
-            {/* Shift indicators */}
-            {day.shifts.map((shift, shiftIndex) => (
-              <div
-                key={shiftIndex}
-                className={`shift-calendar-item mt-0.5 sm:mt-1 p-0.5 sm:p-1 text-xs rounded-lg truncate flex items-center justify-between ${
-                  shift.uploaded ? 'shadow-sm' : ''
-                }`}
-                title={`${shift.startTime} - ${shift.endTime}${shift.uploaded ? ' (Synced to Google Calendar)' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleShiftClick(shift);
-                }}
+              <div className={`text-sm sm:text-base md:text-lg font-semibold mb-2 ${
+                day.isToday 
+                  ? 'text-white rounded-full w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center' 
+                  : theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`}
+              style={day.isToday ? { backgroundColor: '#C8A5FF' } : {}}
               >
-                <span className="hidden sm:inline text-xs">{shift.startTime} - {shift.endTime}</span>
-                <span className="sm:hidden text-xs">●</span>
-                {shift.uploaded && (
-                  <span className="text-green-600 text-xs ml-1 font-bold" title="Synced to Google Calendar">✓</span>
-                )}
+                {new Date(day.date + 'T00:00:00').getDate()}
               </div>
-            ))}
-          </div>
-        ))}
+              
+              {/* Shift indicators */}
+              <div className="space-y-1">
+                {day.shifts.map((shift, shiftIndex) => (
+                  <div
+                    key={shiftIndex}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, shift)}
+                    onDragEnd={handleDragEnd}
+                    className={`shift-calendar-item cursor-pointer transition-all hover:scale-105 rounded-lg ${
+                      shift.uploaded ? 'shadow-md' : 'shadow-sm'
+                    } ${draggedShift?.id === shift.id ? 'opacity-50' : ''}`}
+                    style={{ 
+                      backgroundColor: shift.uploaded ? '#E7F5E7' : '#F0E7FF',
+                      borderLeft: `3px solid ${shift.uploaded ? '#4CAF50' : '#C8A5FF'}`
+                    }}
+                    title={`${shift.startTime} - ${shift.endTime}${shift.uploaded ? ' (Synced to Google Calendar)' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShiftClick(shift);
+                    }}
+                  >
+                    {/* Mobile: Simple indicator */}
+                    <div className="sm:hidden p-1.5 flex items-center justify-between">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: shift.uploaded ? '#4CAF50' : '#C8A5FF' }}></div>
+                      {shift.uploaded && (
+                        <span className="text-green-600 text-xs font-bold">✓</span>
+                      )}
+                    </div>
+                    
+                    {/* Desktop: Full times */}
+                    <div className="hidden sm:block p-2">
+                      <div className="flex items-center justify-between gap-0.5">
+                        <span className={`font-medium text-xs sm:text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{shift.startTime}</span>
+                        {shift.uploaded && (
+                          <span className="text-green-600 text-xs font-bold">✓</span>
+                        )}
+                      </div>
+                      <span className={`text-xs block ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>- {shift.endTime}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Selected Day Details Modal */}
@@ -369,15 +694,19 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
         <div 
           className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
           style={{ backdropFilter: 'blur(8px)' }}
-          onClick={() => setSelectedDay(null)}
+          onClick={() => closeModalWithAnimation()}
         >
           <div 
-            className="bg-white rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md max-h-80 sm:max-h-96 overflow-y-auto shadow-xl border mx-4" 
-            style={{ borderColor: '#C8A5FF' }}
+            ref={dayModalRef}
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md max-h-80 sm:max-h-96 overflow-y-auto shadow-xl border mx-4" 
+            style={{ 
+              backgroundColor: theme === 'dark' ? '#444443' : 'white',
+              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800">
+              <h3 className="text-base sm:text-lg font-semibold" style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>
                 {new Date(selectedDay.date + 'T00:00:00').toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -386,8 +715,12 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                 })}
               </h3>
               <button
-                onClick={() => setSelectedDay(null)}
-                className="text-gray-500 hover:text-purple-700 p-1 rounded-full hover:bg-purple-50"
+                onClick={() => closeModalWithAnimation()}
+                className={`p-1 rounded-full ${
+                  theme === 'dark' 
+                    ? 'text-gray-400 hover:text-purple-400 hover:bg-gray-700' 
+                    : 'text-gray-500 hover:text-purple-700 hover:bg-purple-50'
+                }`}
                 style={{ 
                   backgroundColor: 'transparent', 
                   borderColor: 'transparent' 
@@ -398,20 +731,22 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
             </div>
 
             {selectedDay.shifts.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No shifts scheduled</p>
+              <p className="text-center py-4" style={{ color: theme === 'dark' ? 'white' : '#6B7280' }}>No shifts scheduled</p>
             ) : (
               <div className="space-y-3">
                 {selectedDay.shifts.map((shift, index) => (
                   <div 
                     key={index} 
-                    className={`border rounded-4xl p-3 sm:p-4 ${shift.uploaded ? 'shadow-sm' : ''}`}
+                    className={`border rounded-xl sm:rounded-4xl p-3 sm:p-4 ${shift.uploaded ? 'shadow-sm' : ''}`}
                     style={{ 
-                      borderColor: '#C8A5FF',
-                      backgroundColor: shift.uploaded ? '#F8F4FF' : 'white'
+                      borderColor: theme === 'dark' ? '#555' : '#C8A5FF',
+                      backgroundColor: shift.uploaded 
+                        ? (theme === 'dark' ? '#3A3A3A' : '#F8F4FF')
+                        : (theme === 'dark' ? '#2A2A2A' : 'white')
                     }}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <div className="text-base sm:text-lg font-medium text-gray-800 flex items-center gap-2">
+                      <div className="text-base sm:text-lg font-medium flex items-center gap-2" style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>
                         {shift.startTime} - {shift.endTime}
                         {shift.uploaded && (
                           <span className="text-green-600 text-sm font-bold" title="Synced to Google Calendar">✓ Synced</span>
@@ -421,8 +756,8 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                     
                     {shift.coworkers && (
                       <div className="mb-2">
-                        <span className="text-sm font-medium text-gray-700">Working with you: </span>
-                        <div className="text-sm text-gray-600">
+                        <span className="text-sm font-medium" style={{ color: theme === 'dark' ? 'white' : '#374151' }}>Working with you: </span>
+                        <div className="text-sm" style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>
                           {(() => {
                             try {
                               // Try to parse as JSON for structured coworker info
@@ -446,10 +781,10 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                                     <ul className="space-y-2 mt-2">
                                       {overlappingCoworkers.map((coworker, idx: number) => (
                                         <li key={idx} className="border-l-4 pl-3" style={{ borderColor: '#E7D8FF' }}>
-                                          <div className="font-bold text-gray-800 text-base">
+                                          <div className="font-bold text-base" style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>
                                             {coworker.name?.split(' ')[0] || coworker.name}
                                           </div>
-                                          <div className="text-sm text-gray-500">
+                                          <div className="text-sm" style={{ color: theme === 'dark' ? 'white' : '#6B7280' }}>
                                             {coworker.overlapStart} - {coworker.overlapEnd}
                                           </div>
                                         </li>
@@ -457,15 +792,15 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                                     </ul>
                                   );
                                 } else {
-                                  return <span className="text-gray-500">No overlapping shifts</span>;
+                                  return <span style={{ color: theme === 'dark' ? 'white' : '#6B7280' }}>No overlapping shifts</span>;
                                 }
                               }
                             } catch {
                               // Fallback to simple comma-separated string
-                              return <span className="text-gray-600">{shift.coworkers}</span>;
+                              return <span style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>{shift.coworkers}</span>;
                             }
                             // Fallback to simple comma-separated string
-                            return <span className="text-gray-600">{shift.coworkers}</span>;
+                            return <span style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>{shift.coworkers}</span>;
                           })()}
                         </div>
                       </div>
@@ -473,8 +808,8 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                     
                     {shift.notes && (
                       <div>
-                        <span className="text-sm font-medium text-gray-700">Notes: </span>
-                        <span className="text-sm text-gray-600">{shift.notes}</span>
+                        <span className="text-sm font-medium" style={{ color: theme === 'dark' ? 'white' : '#374151' }}>Notes: </span>
+                        <span className="text-sm" style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>{shift.notes}</span>
                       </div>
                     )}
                   </div>
@@ -490,18 +825,26 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
         <div 
           className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
           style={{ backdropFilter: 'blur(8px)' }}
-          onClick={() => setModalContent(null)}
+          onClick={() => closeModalWithAnimation()}
         >
           <div 
-            className="bg-white rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
-            style={{ borderColor: '#C8A5FF' }}
+            ref={modalRef}
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
+            style={{ 
+              backgroundColor: theme === 'dark' ? '#444443' : 'white',
+              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Shift Details</h3>
+              <h3 className="text-lg font-semibold" style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>Shift Details</h3>
               <button
-                onClick={() => setModalContent(null)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                onClick={() => closeModalWithAnimation()}
+                className={`p-1 rounded-full ${
+                  theme === 'dark' 
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
                 style={{ 
                   backgroundColor: 'transparent', 
                   borderColor: 'transparent' 
@@ -521,16 +864,20 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
         <div 
           className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
           style={{ backdropFilter: 'blur(8px)' }}
-          onClick={cancelDelete}
+          onClick={() => closeModalWithAnimation(() => setShiftToDelete(null))}
         >
           <div 
-            className="bg-white rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
-            style={{ borderColor: '#C8A5FF' }}
+            ref={deleteModalRef}
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-sm shadow-xl border mx-4" 
+            style={{ 
+              backgroundColor: theme === 'dark' ? '#444443' : 'white',
+              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Delete Shift</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Delete Shift</h3>
+              <p className={`mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>
                 Are you sure you want to delete this shift?
                 <br />
                 <span className="font-medium">
@@ -539,14 +886,18 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
               </p>
               <div className="flex space-x-3">
                 <button
-                  onClick={cancelDelete}
-                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-4xl border border-gray-300 transition-colors"
+                  onClick={() => closeModalWithAnimation(() => setShiftToDelete(null))}
+                  className={`flex-1 px-4 py-2 rounded-xl sm:rounded-4xl border transition-colors ${
+                    theme === 'dark' 
+                      ? 'text-white bg-gray-700 hover:bg-gray-600 border-gray-600' 
+                      : 'text-gray-600 bg-gray-100 hover:bg-gray-200 border-gray-300'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="flex-1 px-4 py-2 text-white bg-red-500 hover:bg-red-600 rounded-4xl transition-colors"
+                  className="flex-1 px-4 py-2 text-white bg-red-500 hover:bg-red-600 rounded-xl sm:rounded-4xl transition-colors"
                 >
                   Delete
                 </button>
@@ -555,6 +906,274 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
           </div>
         </div>
       )}
+
+      {/* Edit Shift Modal */}
+      {shiftToEdit && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
+          style={{ backdropFilter: 'blur(8px)' }}
+          onClick={() => closeModalWithAnimation(() => setShiftToEdit(null))}
+        >
+          <div 
+            ref={editModalRef}
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
+            style={{ 
+              backgroundColor: theme === 'dark' ? '#444443' : 'white',
+              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Edit Shift</h3>
+              <button
+                onClick={() => closeModalWithAnimation(() => setShiftToEdit(null))}
+                className={`p-1 rounded-full ${
+                  theme === 'dark' 
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+                style={{ 
+                  backgroundColor: 'transparent', 
+                  borderColor: 'transparent' 
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <EditShiftForm 
+              shift={shiftToEdit}
+              onClose={() => setShiftToEdit(null)}
+              theme={theme}
+            />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Edit Shift Form Component
+function EditShiftForm({ shift, onClose, theme }: { shift: Shift; onClose: () => void; theme: 'light' | 'dark' }) {
+  const [formData, setFormData] = useState({
+    date: shift.date,
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    coworkers: shift.coworkers || '',
+    notes: shift.notes || '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Helper to convert 12-hour time to 24-hour for input
+  const convertTo24Hour = (time12: string): string => {
+    const match = time12.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return '';
+    
+    let hours = parseInt(match[1]);
+    const minutes = match[2];
+    const period = match[3].toUpperCase();
+    
+    if (period === 'AM' && hours === 12) hours = 0;
+    else if (period === 'PM' && hours !== 12) hours += 12;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes}`;
+  };
+
+  // Helper to convert 24-hour time to 12-hour for display
+  const convertTo12Hour = (time24: string): string => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const generateTimeOptions = () => {
+    const times = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const timeLabel = `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
+        const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        times.push({ label: timeLabel, value: timeValue });
+      }
+    }
+    return times;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/shifts/${shift.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: formData.date,
+          startTime: convertTo12Hour(formData.startTime),
+          endTime: convertTo12Hour(formData.endTime),
+          coworkers: formData.coworkers,
+          notes: formData.notes,
+        }),
+      });
+
+      if (response.ok) {
+        window.location.reload(); // Refresh to show updated shift
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to update shift');
+      }
+    } catch (error) {
+      console.error('Error updating shift:', error);
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-300 rounded-xl text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+      
+      <div>
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
+          Date
+        </label>
+        <input
+          type="date"
+          value={formData.date}
+          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+          required
+        />
+      </div>
+
+      <div>
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
+          Start Time
+        </label>
+        <select
+          value={convertTo24Hour(shift.startTime) || formData.startTime}
+          onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+          required
+        >
+          {generateTimeOptions().map((time) => (
+            <option key={time.value} value={time.value}>
+              {time.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
+          End Time
+        </label>
+        <select
+          value={convertTo24Hour(shift.endTime) || formData.endTime}
+          onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+          required
+        >
+          {generateTimeOptions().map((time) => (
+            <option key={time.value} value={time.value}>
+              {time.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
+          Coworkers (optional)
+        </label>
+        <div className={`text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+          Enter names separated by commas (e.g., John, Jane, Mike)
+        </div>
+        <input
+          type="text"
+          value={formData.coworkers}
+          onChange={(e) => setFormData(prev => ({ ...prev, coworkers: e.target.value }))}
+          placeholder="John, Jane, Mike"
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+        />
+        {formData.coworkers && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {formData.coworkers.split(',').filter(name => name.trim()).map((name, idx) => (
+              <span 
+                key={idx}
+                className={`px-2 py-1 rounded-lg text-xs ${
+                  theme === 'dark' 
+                    ? 'bg-purple-900 text-purple-200' 
+                    : 'bg-purple-100 text-purple-700'
+                }`}
+              >
+                {name.trim()}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
+          Notes (optional)
+        </label>
+        <textarea
+          value={formData.notes}
+          onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+          placeholder="Any additional notes..."
+          className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none ${
+            theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+          }`}
+          style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+          rows={3}
+        />
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className={`flex-1 px-4 py-2 rounded-xl sm:rounded-4xl border transition-colors ${
+            theme === 'dark' 
+              ? 'text-white bg-gray-700 hover:bg-gray-600 border-gray-600' 
+              : 'text-gray-600 bg-gray-100 hover:bg-gray-200 border-gray-300'
+          }`}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={loading}
+          className={`flex-1 px-4 py-2 text-white rounded-xl sm:rounded-4xl transition-colors ${
+            loading ? 'opacity-50 cursor-not-allowed bg-blue-400' : 'bg-blue-500 hover:bg-blue-600'
+          }`}
+        >
+          {loading ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
   );
 }

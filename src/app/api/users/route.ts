@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { adminDb } from '@/lib/supabase-admin';
 
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    const users = await adminDb.users.findAll();
 
     return NextResponse.json({ users });
   } catch (error) {
@@ -33,12 +29,10 @@ export async function POST(req: Request) {
     }
 
     // Create new user
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password, // This should be hashed in a real application
-      },
+    const user = await adminDb.users.create({
+      name,
+      email,
+      password, // This should be hashed in a real application
     });
 
     return NextResponse.json({ user }, { status: 201 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CalendarView from '@/components/CalendarView';
 import ShiftForm from '@/components/ShiftForm';
@@ -8,18 +8,27 @@ import { Shift } from '@/types/shift';
 import { AuthUser } from '@/types/user';
 import { debounceRequest } from '@/lib/debounce';
 import { cachedFetch, preloadCriticalData, warmupCriticalEndpoints, clearCache } from '@/lib/performance';
+import { RefreshCw, Moon, Sun } from 'lucide-react';
+import gsap from 'gsap';
+import { useTheme } from '@/contexts/ThemeContext';
+
+// Configure GSAP for 120fps
+gsap.ticker.fps(120);
 
 export default function DashboardPage() {
-  const [shifts, setShifts] = useState<Shift[]>([]);
+  const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [googleSyncing, setGoogleSyncing] = useState(false);
-  const [googleConnected, setGoogleConnected] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-  const [calendars, setCalendars] = useState<{ id: string; summary: string }[]>([]);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleConnecting, setGoogleConnecting] = useState(false);
+  const [googleSyncing, setGoogleSyncing] = useState(false);
+  const [calendars, setCalendars] = useState<Array<{ id: string; summary: string }>>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
-  const router = useRouter();
+  const addFormRef = useRef<HTMLDivElement>(null);
 
   const checkAuth = useCallback(async () => {
     return debounceRequest('auth-check', async () => {
@@ -137,16 +146,24 @@ export default function DashboardPage() {
         }
       } else {
         const errorData = await response.json();
-        console.error('Failed to fetch calendars:', response.status, errorData);
         
         // If Google Calendar is not connected, don't show error - just leave calendars empty
         if (response.status === 400 && errorData.error?.includes('not connected')) {
           console.log('Google Calendar not connected - this is normal for new users');
           setCalendars([]);
+        } else if (response.status === 500) {
+          console.error('Failed to fetch calendars (500):', errorData);
+          // Show user-friendly message for 500 errors
+          setFeedbackMessage('Unable to fetch Google Calendar list. Please try disconnecting and reconnecting.');
+          setTimeout(() => setFeedbackMessage(null), 5000);
+        } else {
+          console.error('Failed to fetch calendars:', response.status, errorData);
         }
       }
     } catch (error) {
       console.error('Error fetching calendars:', error);
+      setFeedbackMessage('Network error fetching calendars. Please check your connection.');
+      setTimeout(() => setFeedbackMessage(null), 5000);
     }
   };
 
@@ -177,6 +194,14 @@ export default function DashboardPage() {
     });
   };
 
+  const handleUpdateShift = (shiftId: string, updatedShift: Shift) => {
+    setShifts(prev => 
+      prev.map(shift => 
+        shift.id === shiftId ? updatedShift : shift
+      )
+    );
+  };
+
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -191,17 +216,29 @@ export default function DashboardPage() {
     if (!googleConnected) {
       // Start Google OAuth flow
       try {
+        setGoogleConnecting(true);
+        setFeedbackMessage('Connecting to Google Calendar...');
+        
         const response = await fetch('/api/google/auth');
         const data = await response.json();
         
         if (response.ok && data.authUrl) {
-          window.location.href = data.authUrl;
+          setFeedbackMessage('Redirecting to Google...');
+          // Small delay so user sees the message
+          setTimeout(() => {
+            // Hard redirect to Google auth
+            window.location.href = data.authUrl;
+          }, 500);
         } else {
-          alert(data.error || 'Failed to initiate Google Calendar connection');
+          setFeedbackMessage(data.error || 'Failed to initiate Google Calendar connection');
+          setGoogleConnecting(false);
+          setTimeout(() => setFeedbackMessage(null), 3000);
         }
       } catch (error) {
         console.error('Google auth error:', error);
-        alert('Failed to connect to Google Calendar');
+        setFeedbackMessage('Failed to connect to Google Calendar');
+        setGoogleConnecting(false);
+        setTimeout(() => setFeedbackMessage(null), 3000);
       }
     } else {
       // Sync shifts to Google Calendar
@@ -301,36 +338,105 @@ export default function DashboardPage() {
     }
   }, [selectedCalendar, calendars]);
 
+  // Animate Add Shift modal
+  useEffect(() => {
+    if (showAddForm && addFormRef.current) {
+      gsap.fromTo(
+        addFormRef.current,
+        { opacity: 0, scale: 0.8, y: 20 },
+        { 
+          opacity: 1, 
+          scale: 1, 
+          y: 0, 
+          duration: 0.25, 
+          ease: 'back.out(1.7)',
+          force3D: true
+        }
+      );
+    }
+  }, [showAddForm]);
+
+  // Close modal with animation
+  const closeAddFormWithAnimation = () => {
+    if (addFormRef.current) {
+      gsap.to(addFormRef.current, {
+        opacity: 0,
+        scale: 0.8,
+        y: 20,
+        duration: 0.2,
+        ease: 'power2.in',
+        onComplete: () => setShowAddForm(false)
+      });
+    } else {
+      setShowAddForm(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? '#444443' : 'white' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: '#C8A5FF' }}></div>
-          <p className="mt-4 text-gray-600">Loading your schedule...</p>
+          <p className="mt-4 font-medium" style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>
+            Loading your schedule...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-white shadow border-b" style={{ borderColor: '#C8A5FF' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-6 gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Schedules</h1>
-              {user && (
-                <p className="text-sm text-gray-600">Welcome back, {user.name}</p>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-1 sm:gap-2 w-full sm:w-auto">
+    <div className="min-h-screen">
+      {/* Navbar - Rounded on mobile, more rounded on desktop */}
+      <div className="pt-2 px-2 sm:pt-4 sm:px-4 lg:px-6">
+        <div className="mx-auto">
+          <div className="rounded-2xl sm:rounded-4xl shadow-lg border px-4 sm:px-6 py-3 sm:py-4" style={{ 
+            backgroundColor: theme === 'dark' ? '#444443' : 'white',
+            borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+          }}>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold" style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}>
+                  <span style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}>Schedules</span>
+                </h1>
+                {user && (
+                  <p className="text-sm" style={{ color: theme === 'dark' ? '#FFFFFF' : '#4B5563' }}>
+                    <span style={{ color: theme === 'dark' ? '#FFFFFF' : '#4B5563' }}>
+                      Welcome back, {user.name}
+                    </span>
+                    <span className="inline-block w-0.5 h-4 ml-1 animate-[blink_1s_ease-in-out_infinite]" style={{ verticalAlign: 'middle', backgroundColor: theme === 'dark' ? '#FFFFFF' : '#4B5563' }}></span>
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2 w-full sm:w-auto">
+              {/* Theme Toggle Button */}
               <button
-                onClick={() => setShowAddForm(true)}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-4xl transition-colors text-gray-700 border hover:bg-gray-100 text-xs sm:text-sm"
+                onClick={toggleTheme}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm flex items-center gap-1 ${
+                  theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                }`}
                 style={{ 
                   backgroundColor: '#E7D8FF', 
-                  borderColor: '#C8A5FF' 
+                  borderColor: theme === 'dark' ? '#666' : '#C8A5FF',
+                  color: theme === 'dark' ? '#FFFFFF' : '#000000'
+                }}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-4 h-4" style={{ color: '#FFFFFF' }} />
+                ) : (
+                  <Moon className="w-4 h-4" style={{ color: '#000000' }} />
+                )}
+              </button>
+              <button
+                onClick={() => setShowAddForm(true)}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm ${
+                  theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                }`}
+                style={{ 
+                  backgroundColor: '#E7D8FF', 
+                  borderColor: theme === 'dark' ? '#666' : '#C8A5FF',
+                  color: theme === 'dark' ? '#000000' : '#000000'
                 }}
               >
                 <span className="hidden sm:inline">Add Shift</span>
@@ -338,10 +444,13 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => router.push('/upload')}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-4xl transition-colors text-gray-700 border hover:bg-gray-100 text-xs sm:text-sm"
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm ${
+                  theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                }`}
                 style={{ 
                   backgroundColor: '#E7D8FF', 
-                  borderColor: '#C8A5FF' 
+                  borderColor: theme === 'dark' ? '#666' : '#C8A5FF',
+                  color: theme === 'dark' ? '#FFFFFF' : '#000000'
                 }}
               >
                 <span className="hidden sm:inline">Upload Schedule</span>
@@ -350,10 +459,13 @@ export default function DashboardPage() {
               {googleConnected ? (
                 <button
                   onClick={handleDisconnectGoogleCalendar}
-                  className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-4xl transition-colors text-gray-700 border hover:bg-gray-100 text-xs sm:text-sm"
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm ${
+                    theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                  }`}
                   style={{ 
                     backgroundColor: '#E7D8FF', 
-                    borderColor: '#C8A5FF' 
+                    borderColor: theme === 'dark' ? '#666' : '#C8A5FF',
+                    color: theme === 'dark' ? '#FFFFFF' : '#000000'
                   }}
                 >
                   <span className="hidden sm:inline">Disconnect Google Calendar</span>
@@ -362,84 +474,114 @@ export default function DashboardPage() {
               ) : (
                 <button
                   onClick={handleUploadToGoogleCalendar}
-                  className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-4xl transition-colors text-gray-700 border hover:bg-gray-100 text-xs sm:text-sm"
+                  disabled={googleConnecting}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm flex items-center ${
+                    theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                  } ${googleConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ 
                     backgroundColor: '#E7D8FF', 
-                    borderColor: '#C8A5FF' 
+                    borderColor: theme === 'dark' ? '#666' : '#C8A5FF',
+                    color: theme === 'dark' ? '#FFFFFF' : '#000000'
                   }}
                 >
-                  <span className="hidden sm:inline">Connect Google Calendar</span>
-                  <span className="sm:hidden">Connect Google</span>
+                  {googleConnecting && (
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ color: theme === 'dark' ? '#FF8C00' : '#000000' }}>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  <span className="hidden sm:inline">{googleConnecting ? 'Connecting...' : 'Connect Google Calendar'}</span>
+                  <span className="sm:hidden">{googleConnecting ? 'Connecting...' : 'Connect Google'}</span>
                 </button>
               )}
               <button
                 onClick={handleLogout}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-4xl transition-colors text-gray-700 border hover:bg-gray-100 text-xs sm:text-sm ml-auto"
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm ml-auto flex items-center gap-1 ${
+                  theme === 'dark' ? 'hover:bg-red-900' : 'hover:bg-red-100'
+                }`}
                 style={{ 
                   backgroundColor: '#FDE2E2', 
-                  borderColor: '#F5A5A5' 
+                  borderColor: theme === 'dark' ? '#666' : '#F5A5A5',
+                  color: theme === 'dark' ? '#FFFFFF' : '#000000'
                 }}
+                title="Logout"
               >
-                Logout
+                <span>↗</span>
+                <span className="hidden sm:inline">Logout</span>
               </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="px-2 sm:px-4 lg:px-6 py-2 sm:py-4">
         {/* Feedback Message */}
         {feedbackMessage && (
-          <div className="mb-4 p-3 sm:p-4 rounded-4xl border animate-pulse" style={{ backgroundColor: '#E7D8FF', borderColor: '#C8A5FF' }}>
-            <p className="text-gray-800 text-center text-sm sm:text-base">{feedbackMessage}</p>
+          <div className="mb-4 p-3 sm:p-4 rounded-2xl sm:rounded-4xl border animate-pulse max-w-7xl mx-auto" style={{ 
+            backgroundColor: '#E7D8FF', 
+            borderColor: theme === 'dark' ? '#666' : '#C8A5FF'
+          }}>
+            <p className="text-center text-sm sm:text-base" style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}>{feedbackMessage}</p>
           </div>
         )}
         
-        {/* Calendar View */}
-        <div className="bg-white rounded-4xl shadow border-1" style={{ borderColor: '#C8A5FF' }}>
-          <CalendarView shifts={shifts} onDeleteShift={handleDeleteShift} />
+        {/* Fullscreen Calendar View */}
+        <div className="rounded-2xl sm:rounded-4xl shadow-lg overflow-hidden" style={{ 
+          backgroundColor: theme === 'dark' ? '#444443' : 'white'
+        }}>
+          <CalendarView shifts={shifts} onDeleteShift={handleDeleteShift} onUpdateShift={handleUpdateShift} />
         </div>
 
-        {/* Calendar Selection */}
+        {/* Calendar Selection - Native Dropdown */}
         {googleConnected && calendars.length > 0 && (
-          <div className="mt-4 p-4 rounded-4xl bg-white shadow border" style={{ borderColor: '#C8A5FF' }}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="mt-4 p-3 sm:p-4 rounded-2xl sm:rounded-4xl shadow border" style={{ 
+            backgroundColor: theme === 'dark' ? '#444443' : 'white',
+            borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+          }}>
+            <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
               Select Google Calendar:
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              {/* Native Browser Dropdown */}
               <select
                 value={selectedCalendar || ''}
                 onChange={(e) => setSelectedCalendar(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-4xl border focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
-                style={{ borderColor: '#C8A5FF' }}
+                className={`flex-1 px-3 py-2 text-sm sm:text-base rounded-xl sm:rounded-4xl border focus:ring-2 focus:ring-purple-500 focus:outline-none ${
+                  theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
+                }`}
+                style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
               >
-                {calendars.map(calendar => (
+                <option value="">Select a calendar</option>
+                {calendars.map((calendar) => (
                   <option key={calendar.id} value={calendar.id}>
                     {calendar.summary}
                   </option>
                 ))}
               </select>
+
               <button
                 onClick={handleSync}
                 disabled={googleSyncing}
-                className={`px-3 py-2 rounded-4xl transition-colors flex items-center gap-1 text-gray-700 border text-sm ${
-                  googleSyncing ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors flex items-center justify-center gap-1 border text-xs sm:text-sm ${
+                  theme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                } ${googleSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 style={{ 
                   backgroundColor: '#E7D8FF', 
-                  borderColor: '#C8A5FF' 
+                  borderColor: theme === 'dark' ? '#666' : '#C8A5FF'
                 }}
               >
                 {googleSyncing ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2" style={{ borderColor: '#C8A5FF' }}></div>
+                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2" style={{ borderColor: '#C8A5FF' }}></div>
                     <span className="hidden sm:inline">Syncing...</span>
                     <span className="sm:hidden">...</span>
                   </>
                 ) : (
                   <>
-                    🔄 <span>Sync to Calendar</span>
+                    <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>Sync to Calendar</span>
                   </>
                 )}
               </button>
@@ -453,17 +595,21 @@ export default function DashboardPage() {
         <div 
           className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
           style={{ backdropFilter: 'blur(8px)' }}
-          onClick={() => setShowAddForm(false)}
+          onClick={() => closeAddFormWithAnimation()}
         >
           <div 
-            className="bg-white rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
-            style={{ borderColor: '#C8A5FF' }}
+            ref={addFormRef}
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
+            style={{ 
+              backgroundColor: theme === 'dark' ? '#444443' : 'white',
+              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">Add New Shift</h2>
+            <h2 className={`text-lg sm:text-xl font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Add New Shift</h2>
             <ShiftForm 
               onShiftAdded={handleShiftAdded}
-              onCancel={() => setShowAddForm(false)}
+              onCancel={() => closeAddFormWithAnimation()}
             />
           </div>
         </div>

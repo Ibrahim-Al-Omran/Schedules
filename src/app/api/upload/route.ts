@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { Buffer } from 'buffer';
 import { parseSchedule } from '@/lib/parseSchedule';
 import { getAuthUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 // Configure as dynamic since it uses authentication (cookies)
 export const dynamic = 'force-dynamic';
@@ -99,65 +99,70 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Use a transaction to ensure data consistency
-    const result = await prisma.$transaction(async (tx) => {
-      // Check for existing shifts to prevent duplicates
-      const existingShifts = await tx.shift.findMany({
-        where: {
-          userId: authUser.userId,
-          date: {
-            in: userShifts.map(shift => shift.date)
-          }
-        },
-        select: {
-          date: true,
-          startTime: true,
-          endTime: true,
-        }
-      });
+    // Check for existing shifts to prevent duplicates using Supabase
+    const dates = userShifts.map(shift => shift.date);
+    const { data: existingShifts, error: existingError } = await supabaseAdmin
+      .from('Shift')
+      .select('date, startTime, endTime')
+      .eq('userId', authUser.userId)
+      .in('date', dates);
 
-      // Filter out shifts that already exist (same date, start time, end time)
-      const newShifts = userShifts.filter(shift => {
-        const exists = existingShifts.some(existing => 
-          existing.date === shift.date && 
-          existing.startTime === shift.startTime && 
-          existing.endTime === shift.endTime
-        );
-        return !exists;
-      });
+    if (existingError) throw existingError;
 
-      if (newShifts.length === 0) {
-        return {
-          createdShifts: [],
-          skipped: userShifts.length,
-          message: 'All shifts already exist in the database'
-        };
-      }
-
-      // Create all shifts in the transaction
-      const createdShifts = await tx.shift.createMany({
-        data: newShifts.map(shift => ({
-          date: shift.date,
-          startTime: shift.startTime,
-          endTime: shift.endTime,
-          coworkers: shift.coworkers,
-          notes: shift.notes || '',
-          uploaded: false,
-          userId: authUser.userId,
-        })),
-        skipDuplicates: true,
-      });
-
-      return {
-        createdShifts,
-        skipped: userShifts.length - newShifts.length,
-        message: 'File parsed and shifts saved successfully'
-      };
+    // Filter out shifts that already exist (same date, start time, end time)
+    const newShifts = userShifts.filter(shift => {
+      const exists = existingShifts?.some((existing: { date: string; startTime: string; endTime: string }) => 
+        existing.date === shift.date && 
+        existing.startTime === shift.startTime && 
+        existing.endTime === shift.endTime
+      );
+      return !exists;
     });
+
+    if (newShifts.length === 0) {
+      return NextResponse.json({ 
+        message: 'All shifts already exist in the database',
+        count: 0,
+        skipped: userShifts.length,
+        rows: rows.length 
+      });
+    }
+
+    // Create all shifts using Supabase
+    // Note: Supabase will auto-generate IDs if the column has a default value
+    const shiftsToCreate = newShifts.map(shift => ({
+      date: shift.date,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      coworkers: shift.coworkers,
+      notes: shift.notes || '',
+      uploaded: false,
+      userId: authUser.userId,
+    }));
+
+    console.log(`Attempting to insert ${shiftsToCreate.length} shifts...`);
+    
+    const { data: insertedShifts, error: insertError } = await supabaseAdmin
+      .from('Shift')
+      .insert(shiftsToCreate)
+      .select();
+
+    if (insertError) {
+      console.error('Insert error:', insertError);
+      throw insertError;
+    }
+    
+    console.log(`Successfully inserted ${insertedShifts?.length || 0} shifts`);
+
+    const result = {
+      createdShifts: { count: newShifts.length },
+      skipped: userShifts.length - newShifts.length,
+      message: 'File parsed and shifts saved successfully'
+    };
 
     return NextResponse.json({ 
       message: result.message,
-      count: Array.isArray(result.createdShifts) ? 0 : result.createdShifts.count,
+      count: result.createdShifts.count,
       skipped: result.skipped,
       rows: rows.length 
     });
@@ -167,7 +172,5 @@ export async function POST(req: NextRequest) {
       { error: 'Failed to process file' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

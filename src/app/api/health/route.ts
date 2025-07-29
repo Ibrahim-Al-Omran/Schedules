@@ -1,13 +1,18 @@
 // This can be called by external monitoring services to keep functions warm
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
   try {
     const startTime = Date.now();
     
     // Simple health check query
-    await prisma.$queryRaw`SELECT 1 as health_check`;
+    const { error } = await supabaseAdmin
+      .from('User')
+      .select('id')
+      .limit(1);
+    
+    if (error) throw error;
     
     const responseTime = Date.now() - startTime;
     
@@ -16,7 +21,7 @@ export async function GET() {
       database: 'connected',
       responseTime: `${responseTime}ms`,
       timestamp: new Date().toISOString(),
-      pooling: 'transaction-pooler-active'
+      api: 'supabase-rest-api'
     });
   } catch (error) {
     console.error('Health check failed:', error);
