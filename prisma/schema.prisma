@@ -1,0 +1,42 @@
+// This tells Prisma which database to use and where to find it
+datasource db {
+  provider = "postgresql"        // We're using PostgreSQL (Supabase)
+  url      = env("DATABASE_URL") // Connection string from .env file
+}
+
+// This generates the Prisma Client that we'll use in our app
+generator client {
+  provider = "prisma-client-js"
+}
+
+// User model - represents a user in our app
+model User {
+  id        String   @id @default(uuid()) // Primary key, auto-generated UUID
+  name      String                        // User's display name
+  email     String   @unique              // Email must be unique across all users
+  password  String                        // Hashed password for authentication
+  createdAt DateTime @default(now())      // Automatically set when user is created
+  updatedAt DateTime @updatedAt           // Automatically updated when user is modified
+  
+  // Relationships - one user can have many shifts
+  shifts    Shift[]  // This creates a one-to-many relationship with Shift
+}
+
+// Shift model - represents work shifts
+model Shift {
+  id        String   @id @default(uuid()) // Primary key, auto-generated UUID
+  date      String                        // Shift date (YYYY-MM-DD format)
+  startTime String                        // Shift start time (HH:MM format)
+  endTime   String                        // Shift end time (HH:MM format)
+  coworkers String                        // Coworkers on this shift (comma-separated)
+  notes     String?                       // Optional notes about the shift
+  createdAt DateTime @default(now())      // When shift was created
+  
+  // Foreign key relationship to User
+  userId    String                        // This stores the User's id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Index for better query performance
+  @@index([userId])
+  @@index([date])
+}
