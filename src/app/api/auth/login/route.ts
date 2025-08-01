@@ -74,6 +74,10 @@ export async function POST(req: Request) {
       },
     });
 
+    response.headers.set('Access-Control-Allow-Origin', 'https://schedules-ashen.vercel.app');
+    response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
     // Set cookie
     response.cookies.set('auth-token', token, {
       httpOnly: true,

@@ -15,4 +15,8 @@ export const prisma =
     }
   });
 
+prisma.$on('error', (e: any) => {
+  console.error('Prisma error:', e);
+});
+
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
