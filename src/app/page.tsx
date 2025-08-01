@@ -18,7 +18,7 @@ export default function HomePage() {
           // User is not authenticated, redirect to login
           router.push('/login');
         }
-      } catch (error) {
+      } catch {
         // Error checking auth, redirect to login
         router.push('/login');
       }

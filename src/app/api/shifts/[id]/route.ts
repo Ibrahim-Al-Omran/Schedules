@@ -9,7 +9,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authUser = getAuthUser(request as any);
+    const authUser = getAuthUser(request);
     
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

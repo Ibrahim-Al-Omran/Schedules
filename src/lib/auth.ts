@@ -3,6 +3,12 @@ import { NextRequest } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
+interface JWTPayload {
+  userId: string;
+  email: string;
+  name: string;
+}
+
 export function getAuthUser(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value;
@@ -11,7 +17,7 @@ export function getAuthUser(request: NextRequest) {
       return null;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     
     return {
       userId: decoded.userId,

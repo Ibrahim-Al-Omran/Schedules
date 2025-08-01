@@ -6,7 +6,12 @@ import { useRouter } from 'next/navigation';
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<{ 
+    message: string; 
+    shifts?: unknown[]; 
+    success?: boolean; 
+    count?: number; 
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -20,7 +25,7 @@ export default function UploadPage() {
           return;
         }
         setLoading(false);
-      } catch (error) {
+      } catch {
         router.push('/login');
       }
     };

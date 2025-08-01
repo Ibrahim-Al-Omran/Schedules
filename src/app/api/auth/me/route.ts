@@ -1,12 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
+interface UserWithGoogleToken {
+  id: string;
+  name: string;
+  email: string;
+  hasGoogleToken: boolean;
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const authUser = getAuthUser(req as any);
+    const authUser = getAuthUser(req);
     
     if (!authUser) {
       return NextResponse.json(
@@ -20,7 +27,7 @@ export async function GET(req: Request) {
       SELECT id, name, email, "googleAccessToken" IS NOT NULL as "hasGoogleToken"
       FROM "User" 
       WHERE id = ${authUser.userId}
-    ` as any[];
+    ` as UserWithGoogleToken[];
 
     if (!userWithTokens.length) {
       return NextResponse.json(

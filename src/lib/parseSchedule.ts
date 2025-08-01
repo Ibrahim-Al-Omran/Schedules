@@ -13,7 +13,7 @@ interface ParsedShift {
   employeeName?: string;
 }
 
-export function parseSchedule(data: any[][]): ParsedShift[] {
+export function parseSchedule(data: unknown[][]): ParsedShift[] {
   const shifts: ParsedShift[] = [];
   
   console.log('Debug parseSchedule: Data length:', data?.length);
@@ -41,7 +41,7 @@ export function parseSchedule(data: any[][]): ParsedShift[] {
   ];
   
   // Helper function to check if a value is an Excel serial date number
-  const isExcelSerialDate = (value: any): boolean => {
+  const isExcelSerialDate = (value: unknown): boolean => {
     if (typeof value === 'number') {
       // Excel dates are typically between 1 (1900-01-01) and 50000+ (future dates)
       // For 2025, we expect values around 45000-46000
@@ -314,14 +314,14 @@ export function parseSchedule(data: any[][]): ParsedShift[] {
     }
   }
   
-  headerRow.forEach((cell: any, index: number) => {
+  headerRow.forEach((cell: unknown, index: number) => {
     console.log(`Debug parseSchedule: Checking cell ${index}: "${cell}" (type: ${typeof cell})`);
     
     let foundDay = '';
     let date: string | null = null;
     
     // Handle Excel serial dates (numbers)
-    if (isExcelSerialDate(cell)) {
+    if (isExcelSerialDate(cell) && typeof cell === 'number') {
       const convertedDate = excelSerialToDate(cell);
       const parsedDate = new Date(convertedDate);
       
@@ -358,7 +358,7 @@ export function parseSchedule(data: any[][]): ParsedShift[] {
         // If we have a split header, get the date from the next row
         if (hasSplitHeader && dateRow && dateRow[index]) {
           const dateCell = dateRow[index];
-          if (isExcelSerialDate(dateCell)) {
+          if (isExcelSerialDate(dateCell) && typeof dateCell === 'number') {
             date = excelSerialToDate(dateCell);
             console.log(`Debug parseSchedule: Found Excel date ${dateCell} -> ${date} for ${foundDay} from split header`);
           } else if (dateCell && typeof dateCell === 'string') {
@@ -410,7 +410,7 @@ export function parseSchedule(data: any[][]): ParsedShift[] {
                 date: date
               });
             }
-          } catch (e) {
+          } catch {
             console.log(`Debug parseSchedule: Could not parse date from "${cellStr}"`);
           }
         }

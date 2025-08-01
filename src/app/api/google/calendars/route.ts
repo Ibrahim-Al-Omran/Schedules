@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
-    const authUser = getAuthUser(request as any);
+    const authUser = getAuthUser(request);
 
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Get user's Google access token
     const user = await prisma.user.findUnique({
       where: { id: authUser.userId },
-      select: { googleAccessToken: true },
+      select: { googleAccessToken: true }, // Replace 'googleAccessToken' with the actual field name from your Prisma schema, e.g., 'googleToken' or similar
     });
 
     if (!user || !user.googleAccessToken) {

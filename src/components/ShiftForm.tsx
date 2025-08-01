@@ -29,24 +29,6 @@ export default function ShiftForm({ onShiftAdded, onCancel }: ShiftFormProps) {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Convert 12-hour time to 24-hour format for storage
-  const formatTime24Hour = (time12: string): string => {
-    if (!time12) return '';
-    const match = time12.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!match) return '';
-    
-    let [, hours, minutes, ampm] = match;
-    let hour = parseInt(hours);
-    
-    if (ampm.toUpperCase() === 'PM' && hour !== 12) {
-      hour += 12;
-    } else if (ampm.toUpperCase() === 'AM' && hour === 12) {
-      hour = 0;
-    }
-    
-    return `${hour.toString().padStart(2, '0')}:${minutes}`;
-  };
-
   // Generate time options in AM/PM format
   const generateTimeOptions = () => {
     const times = [];

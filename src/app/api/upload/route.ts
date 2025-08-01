@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
 import { Buffer } from 'buffer';
 import { parseSchedule } from '@/lib/parseSchedule';
@@ -7,9 +7,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const authUser = getAuthUser(req as any);
+    const authUser = getAuthUser(req);
     
     if (!authUser) {
       return NextResponse.json(
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
     // Parse rows into shift objects
-    const allShifts = parseSchedule(rows as any[][]);
+    const allShifts = parseSchedule(rows as unknown[][]);
     
     console.log('Debug: User name from auth:', authUser.name);
     console.log('Debug: All employee names found:', [...new Set(allShifts.map(s => s.employeeName).filter(Boolean))]);

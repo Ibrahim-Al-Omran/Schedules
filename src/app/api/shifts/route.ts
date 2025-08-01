@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthUser } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const authUser = getAuthUser(req as any);
+    const authUser = getAuthUser(req);
     
     if (!authUser) {
       return NextResponse.json(
@@ -35,9 +35,9 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const authUser = getAuthUser(req as any);
+    const authUser = getAuthUser(req);
     
     if (!authUser) {
       return NextResponse.json(

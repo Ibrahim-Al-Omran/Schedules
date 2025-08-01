@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Get the authenticated user
-    const authUser = getAuthUser(request as any);
+    const authUser = getAuthUser(request);
     if (!authUser) {
       return NextResponse.redirect(new URL('/login', request.url));
     }

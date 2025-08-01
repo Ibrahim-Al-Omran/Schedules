@@ -5,9 +5,23 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+interface UserTokens {
+  googleAccessToken: string;
+  googleRefreshToken: string;
+}
+
+interface ShiftData {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  coworkers?: string;
+  notes?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const authUser = getAuthUser(request as any);
+    const authUser = getAuthUser(request);
 
     if (!authUser) {
       return NextResponse.json(
@@ -19,7 +33,7 @@ export async function POST(request: NextRequest) {
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: 'Invalid JSON body' },
         { status: 400 }
@@ -42,7 +56,7 @@ export async function POST(request: NextRequest) {
       SELECT "googleAccessToken", "googleRefreshToken" 
       FROM "User" 
       WHERE id = ${authUser.userId}
-    ` as any[];
+    ` as UserTokens[];
 
     if (!user.length || !user[0].googleAccessToken) {
       return NextResponse.json(
@@ -57,7 +71,7 @@ export async function POST(request: NextRequest) {
       FROM "Shift" s
       WHERE s."userId" = ${authUser.userId}
       ORDER BY s.date ASC
-    ` as any[];
+    ` as ShiftData[];
 
     if (shifts.length === 0) {
       return NextResponse.json(
@@ -68,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     const calendar = getGoogleCalendarClient(user[0].googleAccessToken);
     let createdEvents = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     for (const shift of shifts) {
       try {

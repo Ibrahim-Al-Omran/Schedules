@@ -5,8 +5,7 @@ const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    // Use any to bypass TypeScript issues for now
-    const users = await (prisma as any).user.findMany({
+    const users = await prisma.user.findMany({
       orderBy: {
         createdAt: 'desc',
       },
@@ -25,21 +24,22 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email } = body;
+    const { name, email, password } = body;
 
     // Validate required fields
-    if (!name || !email) {
+    if (!name || !email || !password) {
       return NextResponse.json(
-        { error: 'Name and email are required' },
+        { error: 'Name, email, and password are required' },
         { status: 400 }
       );
     }
 
     // Create new user
-    const user = await (prisma as any).user.create({
+    const user = await prisma.user.create({
       data: {
         name,
         email,
+        password, // This should be hashed in a real application
       },
     });
 

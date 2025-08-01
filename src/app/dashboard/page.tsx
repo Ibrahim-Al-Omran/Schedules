@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import CalendarView from '@/components/CalendarView';
 import ShiftForm from '@/components/ShiftForm';
@@ -18,6 +18,40 @@ export default function DashboardPage() {
   const [calendars, setCalendars] = useState<{ id: string; summary: string }[]>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
   const router = useRouter();
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        // Check if user has Google Calendar connected
+        setGoogleConnected(!!data.user.googleAccessToken);
+      } else {
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      router.push('/login');
+    }
+  }, [router]);
+
+  const fetchShifts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/shifts');
+      if (response.ok) {
+        const data = await response.json();
+        setShifts(data.shifts || []);
+      } else if (response.status === 401) {
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error fetching shifts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
   // Check authentication and fetch data
   useEffect(() => {
@@ -37,7 +71,7 @@ export default function DashboardPage() {
       setTimeout(() => setFeedbackMessage(null), 3000);
       window.history.replaceState({}, '', '/dashboard');
     }
-  }, []);
+  }, [checkAuth, fetchShifts]);
 
   // Also refresh shifts when the component becomes visible again (e.g., after upload)
   useEffect(() => {
@@ -52,41 +86,7 @@ export default function DashboardPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        // Check if user has Google Calendar connected
-        setGoogleConnected(!!data.user.googleAccessToken);
-      } else {
-        router.push('/login');
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      router.push('/login');
-    }
-  };
-
-  const fetchShifts = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/shifts');
-      if (response.ok) {
-        const data = await response.json();
-        setShifts(data.shifts || []);
-      } else if (response.status === 401) {
-        router.push('/login');
-      }
-    } catch (error) {
-      console.error('Error fetching shifts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchShifts]);
 
   const fetchCalendars = async () => {
     try {

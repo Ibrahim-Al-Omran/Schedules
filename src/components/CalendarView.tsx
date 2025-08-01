@@ -15,11 +15,12 @@ interface CalendarDay {
   isToday: boolean;
 }
 
-interface Coworker {
-  id: string;
-  firstName: string;
+interface CoworkerData {
+  name: string;
   startTime: string;
   endTime: string;
+  overlapStart?: string;
+  overlapEnd?: string;
 }
 
 export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProps) {
@@ -147,7 +148,7 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
       const coworkerDetails = JSON.parse(coworkers || '[]');
       if (Array.isArray(coworkerDetails) && coworkerDetails.length > 0) {
         const overlappingCoworkers = coworkerDetails
-          .map((coworker: any) => {
+          .map((coworker: CoworkerData) => {
             const overlap = calculateOverlap(startTime, endTime, coworker.startTime, coworker.endTime);
             return overlap ? {
               ...coworker,
@@ -155,12 +156,14 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
               overlapEnd: overlap.end
             } : null;
           })
-          .filter(Boolean);
+          .filter((coworker): coworker is CoworkerData & { overlapStart: string; overlapEnd: string } => 
+            coworker !== null
+          );
 
         if (overlappingCoworkers.length > 0) {
           coworkerList = (
             <ul className="space-y-2 mt-3">
-              {overlappingCoworkers.map((coworker: any, idx: number) => (
+              {overlappingCoworkers.map((coworker, idx: number) => (
                 <li key={idx} className="border-l-4 pl-3" style={{ borderColor: '#E7D8FF' }}>
                   <div className="font-bold text-gray-800 text-base">
                     {coworker.name?.split(' ')[0] || coworker.name}
@@ -398,7 +401,7 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                               const coworkerDetails = JSON.parse(shift.coworkers);
                               if (Array.isArray(coworkerDetails) && coworkerDetails.length > 0) {
                                 const overlappingCoworkers = coworkerDetails
-                                  .map((coworker: any) => {
+                                  .map((coworker: CoworkerData) => {
                                     const overlap = calculateOverlap(shift.startTime, shift.endTime, coworker.startTime, coworker.endTime);
                                     return overlap ? {
                                       ...coworker,
@@ -406,12 +409,14 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                                       overlapEnd: overlap.end
                                     } : null;
                                   })
-                                  .filter(Boolean);
+                                  .filter((coworker): coworker is CoworkerData & { overlapStart: string; overlapEnd: string } => 
+                                    coworker !== null
+                                  );
 
                                 if (overlappingCoworkers.length > 0) {
                                   return (
                                     <ul className="space-y-2 mt-2">
-                                      {overlappingCoworkers.map((coworker: any, idx: number) => (
+                                      {overlappingCoworkers.map((coworker, idx: number) => (
                                         <li key={idx} className="border-l-4 pl-3" style={{ borderColor: '#E7D8FF' }}>
                                           <div className="font-bold text-gray-800 text-base">
                                             {coworker.name?.split(' ')[0] || coworker.name}
