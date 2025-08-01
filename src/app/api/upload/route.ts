@@ -3,9 +3,7 @@ import * as XLSX from 'xlsx';
 import { Buffer } from 'buffer';
 import { parseSchedule } from '@/lib/parseSchedule';
 import { getAuthUser } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   try {

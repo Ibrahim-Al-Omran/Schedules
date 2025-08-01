@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGoogleOAuth2Client } from '@/lib/google';
 import { getAuthUser } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {

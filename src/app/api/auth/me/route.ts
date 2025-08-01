@@ -1,8 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 interface UserWithGoogleToken {
   id: string;
