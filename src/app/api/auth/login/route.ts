@@ -85,6 +85,13 @@ export async function POST(req: Request) {
     return response;
   } catch (error) {
     console.error('Login error:', error);
+    const err = error as Error;
+    console.error('Login error details:', {
+      message: err.message,
+      stack: err.stack,
+      environment: process.env.NODE_ENV,
+      jwtSecretSet: !!process.env.JWT_SECRET,
+    });
     return NextResponse.json(
       { error: 'Login failed' },
       { status: 500 }
