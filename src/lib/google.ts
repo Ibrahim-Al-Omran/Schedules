@@ -13,10 +13,16 @@ export function getGoogleCalendarClient(authToken: string) {
 }
 
 export function getGoogleOAuth2Client() {
+  // Use environment variable if set, otherwise determine based on NODE_ENV
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
+    (process.env.NODE_ENV === 'production' 
+      ? `${process.env.VERCEL_URL || 'https://your-app.vercel.app'}/api/google/callback`
+      : 'http://localhost:3000/api/google/callback');
+
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    redirectUri
   );
 }
 

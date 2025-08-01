@@ -46,8 +46,13 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Auth check error:', error);
+    console.error('Environment check:', {
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      nodeEnv: process.env.NODE_ENV
+    });
     return NextResponse.json(
-      { error: 'Authentication failed' },
+      { error: 'Authentication failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 401 }
     );
   }
