@@ -15,12 +15,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already exists using raw SQL
-    const existingUsers = await prisma.$queryRaw`
-      SELECT id FROM "User" WHERE email = ${email}
-    `;
+    // Check if user already exists using Prisma ORM
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true }
+    });
 
-    if (Array.isArray(existingUsers) && existingUsers.length > 0) {
+    if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },
         { status: 400 }
@@ -30,14 +31,20 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user using raw SQL
-    const result = await prisma.$queryRaw`
-      INSERT INTO "User" (id, name, email, password, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), ${name}, ${email}, ${hashedPassword}, NOW(), NOW())
-      RETURNING id, name, email, "createdAt"
-    `;
-
-    const user = Array.isArray(result) ? result[0] : result;
+    // Create user using Prisma ORM
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+      }
+    });
 
     return NextResponse.json(
       { 
@@ -52,5 +59,8 @@ export async function POST(req: Request) {
       { error: 'Failed to create user' },
       { status: 500 }
     );
+  } finally {
+    // Ensure clean disconnection in serverless environment
+    await prisma.$disconnect();
   }
 }

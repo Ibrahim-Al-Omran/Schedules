@@ -12,7 +12,14 @@ export const prisma =
       db: {
         url: process.env.DATABASE_URL
       }
+    },
+    // Add configuration for better serverless support
+    __internal: {
+      engine: {
+        enableEngineDebugMode: process.env.NODE_ENV === 'development'
+      }
     }
   });
 
+// Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

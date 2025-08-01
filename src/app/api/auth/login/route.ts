@@ -18,20 +18,50 @@ export async function POST(req: Request) {
       );
     }
 
-    // Find user by email using raw SQL
-    const users = await prisma.$queryRaw`
-      SELECT id, name, email, password FROM "User" WHERE email = ${email}
-    ` as Array<{
-      id: string;
-      name: string;
-      email: string;
-      password: string;
-    }>;
-
     console.log('Login attempt for email:', email);
-    console.log('Users found:', users.length);
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Database URL exists:', !!process.env.DATABASE_URL);
+    console.log('Database URL preview:', process.env.DATABASE_URL?.substring(0, 20) + '...');
 
-    const user = Array.isArray(users) && users.length > 0 ? users[0] : null;
+    // Test database connection first
+    try {
+      await prisma.$connect();
+      console.log('Database connected successfully');
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError);
+      throw dbError;
+    }
+
+    // Find user by email using Prisma ORM
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        password: true,
+      }
+    });
+
+    console.log('User found:', !!user);
+    
+    // Additional debugging: check if any users exist at all
+    if (!user) {
+      const totalUsers = await prisma.user.count();
+      console.log('Total users in database:', totalUsers);
+      
+      // Check if there's a user with similar email (case issues?)
+      const similarUsers = await prisma.user.findMany({
+        where: {
+          email: {
+            contains: email.toLowerCase(),
+            mode: 'insensitive'
+          }
+        },
+        select: { email: true }
+      });
+      console.log('Users with similar email:', similarUsers);
+    }
 
     if (!user) {
       console.log('No user found with email:', email);
@@ -95,15 +125,14 @@ export async function POST(req: Request) {
       stack: err.stack,
       environment: process.env.NODE_ENV,
       jwtSecretSet: !!process.env.JWT_SECRET,
-    });
-    console.log('Environment variables:', {
-      DATABASE_URL: process.env.DATABASE_URL,
-      JWT_SECRET: process.env.JWT_SECRET,
-      NODE_ENV: process.env.NODE_ENV,
+      databaseUrlSet: !!process.env.DATABASE_URL,
     });
     return NextResponse.json(
       { error: 'Login failed' },
       { status: 500 }
     );
+  } finally {
+    // Ensure clean disconnection in serverless environment
+    await prisma.$disconnect();
   }
 }
