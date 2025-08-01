@@ -1,15 +1,11 @@
 export interface Shift {
-  id?: string;
+  id: string;
+  date: string;       // YYYY-MM-DD format
+  startTime: string;  // HH:MM format
+  endTime: string;    // HH:MM format
+  coworkers: string;
+  notes?: string;
+  uploaded?: boolean; // Whether shift has been uploaded to Google Calendar
+  createdAt: string;
   userId: string;
-  date: string;        // YYYY-MM-DD format
-  startTime: string;   // HH:MM format
-  endTime: string;     // HH:MM format
-  coworkers: string;   // Comma-separated string of coworker names
-  notes?: string;      // Optional notes about the shift
-  createdAt?: string;
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-  };
 }

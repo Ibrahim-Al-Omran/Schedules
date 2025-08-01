@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch shifts for the authenticated user only using raw SQL
     const shifts = await prisma.$queryRaw`
-      SELECT s.id, s.date, s."startTime", s."endTime", s.coworkers, s.notes, s."createdAt",
+      SELECT s.id, s.date, s."startTime", s."endTime", s.coworkers, s.notes, s.uploaded, s."createdAt",
              u.id as "userId", u.name as "userName", u.email as "userEmail"
       FROM "Shift" s
       JOIN "User" u ON s."userId" = u.id
@@ -57,9 +57,9 @@ export async function POST(req: NextRequest) {
 
     // Create new shift for the authenticated user using raw SQL
     const result = await prisma.$queryRaw`
-      INSERT INTO "Shift" (id, date, "startTime", "endTime", coworkers, notes, "createdAt", "userId")
-      VALUES (gen_random_uuid(), ${date}, ${startTime}, ${endTime}, ${coworkers || ''}, ${notes || ''}, NOW(), ${authUser.userId})
-      RETURNING id, date, "startTime", "endTime", coworkers, notes, "createdAt", "userId"
+      INSERT INTO "Shift" (id, date, "startTime", "endTime", coworkers, notes, uploaded, "createdAt", "userId")
+      VALUES (gen_random_uuid(), ${date}, ${startTime}, ${endTime}, ${coworkers || ''}, ${notes || ''}, false, NOW(), ${authUser.userId})
+      RETURNING id, date, "startTime", "endTime", coworkers, notes, uploaded, "createdAt", "userId"
     `;
 
     const shift = Array.isArray(result) ? result[0] : result;

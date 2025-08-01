@@ -32,6 +32,7 @@ model Shift {
   endTime   String                        // Shift end time (HH:MM format)
   coworkers String                        // Coworkers on this shift (comma-separated)
   notes     String?                       // Optional notes about the shift
+  uploaded  Boolean  @default(false)      // Whether shift has been uploaded to Google Calendar
   createdAt DateTime @default(now())      // When shift was created
   
   // Foreign key relationship to User

@@ -186,7 +186,21 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
 
     return (
       <div className="calendar-shift">
-        <div className="text-lg font-medium text-gray-800 mb-2">{formattedTime}</div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-lg font-medium text-gray-800">{formattedTime}</div>
+          {shift.uploaded && (
+            <div className="flex items-center text-green-600 text-sm">
+              <span className="mr-1">✓</span>
+              <span>Synced</span>
+            </div>
+          )}
+        </div>
+        {shift.notes && (
+          <div className="mb-2">
+            <span className="text-sm font-medium text-gray-700">Notes: </span>
+            <span className="text-sm text-gray-600">{shift.notes}</span>
+          </div>
+        )}
         {coworkerList && (
           <div>
             <div className="text-sm font-medium text-gray-700 mb-1">Working with you:</div>
@@ -330,9 +344,9 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
             {day.shifts.map((shift, shiftIndex) => (
               <div
                 key={shiftIndex}
-                className="mt-0.5 sm:mt-1 p-0.5 sm:p-1 text-gray-700 text-xs rounded-lg truncate"
+                className="mt-0.5 sm:mt-1 p-0.5 sm:p-1 text-gray-700 text-xs rounded-lg truncate flex items-center justify-between"
                 style={{ backgroundColor: '#E7D8FF', border: '1px solid #C8A5FF' }}
-                title={`${shift.startTime} - ${shift.endTime}`}
+                title={`${shift.startTime} - ${shift.endTime}${shift.uploaded ? ' (Synced to Google Calendar)' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleShiftClick(shift);
@@ -340,6 +354,9 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
               >
                 <span className="hidden sm:inline text-xs">{shift.startTime} - {shift.endTime}</span>
                 <span className="sm:hidden text-xs">●</span>
+                {shift.uploaded && (
+                  <span className="text-green-600 text-xs ml-1" title="Synced to Google Calendar">✓</span>
+                )}
               </div>
             ))}
           </div>

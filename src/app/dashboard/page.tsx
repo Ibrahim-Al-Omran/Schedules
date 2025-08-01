@@ -98,7 +98,14 @@ export default function DashboardPage() {
           setSelectedCalendar(null); // Do not set a default calendar
         }
       } else {
-        console.error('Failed to fetch calendars');
+        const errorData = await response.json();
+        console.error('Failed to fetch calendars:', response.status, errorData);
+        
+        // If Google Calendar is not connected, don't show error - just leave calendars empty
+        if (response.status === 400 && errorData.error?.includes('not connected')) {
+          console.log('Google Calendar not connected - this is normal for new users');
+          setCalendars([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching calendars:', error);

@@ -15,6 +15,7 @@ interface ShiftData {
   endTime: string;
   coworkers?: string;
   notes?: string;
+  uploaded?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -63,18 +64,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's shifts
+    // Get user's shifts that haven't been uploaded yet
     const shifts = await prisma.$queryRaw`
-      SELECT s.id, s.date, s."startTime", s."endTime", s.coworkers, s.notes
+      SELECT s.id, s.date, s."startTime", s."endTime", s.coworkers, s.notes, s.uploaded
       FROM "Shift" s
-      WHERE s."userId" = ${authUser.userId}
+      WHERE s."userId" = ${authUser.userId} AND s.uploaded = false
       ORDER BY s.date ASC
     ` as ShiftData[];
 
     if (shifts.length === 0) {
       return NextResponse.json(
-        { error: 'No shifts found to sync' },
-        { status: 400 }
+        { message: 'All shifts have already been synced to Google Calendar' },
+        { status: 200 }
       );
     }
 
@@ -114,6 +115,13 @@ export async function POST(request: NextRequest) {
           calendarId: calendarId,
           requestBody: event
         });
+
+        // Mark shift as uploaded in the database
+        await prisma.$executeRaw`
+          UPDATE "Shift" 
+          SET uploaded = true 
+          WHERE id = ${shift.id}
+        `;
 
         createdEvents++;
       } catch (eventError) {

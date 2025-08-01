@@ -100,9 +100,9 @@ export async function POST(req: NextRequest) {
     const createdShifts = await Promise.all(
       userShifts.map(shift => 
         prisma.$queryRaw`
-          INSERT INTO "Shift" (id, date, "startTime", "endTime", coworkers, notes, "createdAt", "userId")
-          VALUES (gen_random_uuid(), ${shift.date}, ${shift.startTime}, ${shift.endTime}, ${shift.coworkers}, ${shift.notes || ''}, NOW(), ${authUser.userId})
-          RETURNING id, date, "startTime", "endTime", coworkers, notes
+          INSERT INTO "Shift" (id, date, "startTime", "endTime", coworkers, notes, uploaded, "createdAt", "userId")
+          VALUES (gen_random_uuid(), ${shift.date}, ${shift.startTime}, ${shift.endTime}, ${shift.coworkers}, ${shift.notes || ''}, false, NOW(), ${authUser.userId})
+          RETURNING id, date, "startTime", "endTime", coworkers, notes, uploaded
         `
       )
     );
