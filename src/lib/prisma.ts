@@ -1,7 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaClientKnownRequestError, PrismaClientUnknownRequestError, PrismaClientInitializationError, PrismaClientRustPanicError } from '@prisma/client/runtime';
-
-const Prisma = PrismaClient.prototype;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
