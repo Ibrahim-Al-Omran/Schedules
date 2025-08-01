@@ -23,17 +23,23 @@ export async function POST(req: Request) {
       SELECT id, name, email, password FROM "User" WHERE email = ${email}
     `;
 
+    console.log('Login attempt for email:', email);
+    console.log('Users found:', users.length);
+
     const user = Array.isArray(users) && users.length > 0 ? users[0] : null;
 
     if (!user) {
+      console.log('No user found with email:', email);
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
 
+    console.log('User found, checking password...');
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log('Password valid:', isValidPassword);
 
     if (!isValidPassword) {
       return NextResponse.json(
