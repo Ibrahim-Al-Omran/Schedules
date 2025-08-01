@@ -2,6 +2,23 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+type ShiftWithUser = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  coworkers: string;
+  notes: string | null;
+  uploaded: boolean;
+  createdAt: Date;
+  userId: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+};
+
 export async function GET(req: NextRequest) {
   try {
     const authUser = getAuthUser(req);
@@ -13,23 +30,54 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch shifts for the authenticated user only using raw SQL
-    const shifts = await prisma.$queryRaw`
-      SELECT s.id, s.date, s."startTime", s."endTime", s.coworkers, s.notes, s.uploaded, s."createdAt",
-             u.id as "userId", u.name as "userName", u.email as "userEmail"
-      FROM "Shift" s
-      JOIN "User" u ON s."userId" = u.id
-      WHERE s."userId" = ${authUser.userId}
-      ORDER BY s.date DESC
-    `;
+    // Fetch shifts for the authenticated user only using Prisma ORM
+    const shifts: ShiftWithUser[] = await prisma.shift.findMany({
+      where: { userId: authUser.userId },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        coworkers: true,
+        notes: true,
+        uploaded: true,
+        createdAt: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        }
+      },
+      orderBy: { date: 'desc' }
+    }) as ShiftWithUser[];
 
-    return NextResponse.json({ shifts });
+    // Transform the data to match the expected format
+    const transformedShifts = shifts.map((shift: ShiftWithUser) => ({
+      id: shift.id,
+      date: shift.date,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      coworkers: shift.coworkers,
+      notes: shift.notes,
+      uploaded: shift.uploaded,
+      createdAt: shift.createdAt,
+      userId: shift.user.id,
+      userName: shift.user.name,
+      userEmail: shift.user.email,
+    }));
+
+    return NextResponse.json({ shifts: transformedShifts });
   } catch (error) {
     console.error('Error fetching shifts:', error);
     return NextResponse.json(
       { error: 'Failed to fetch shifts' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -55,14 +103,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create new shift for the authenticated user using raw SQL
-    const result = await prisma.$queryRaw`
-      INSERT INTO "Shift" (id, date, "startTime", "endTime", coworkers, notes, uploaded, "createdAt", "userId")
-      VALUES (gen_random_uuid(), ${date}, ${startTime}, ${endTime}, ${coworkers || ''}, ${notes || ''}, false, NOW(), ${authUser.userId})
-      RETURNING id, date, "startTime", "endTime", coworkers, notes, uploaded, "createdAt", "userId"
-    `;
-
-    const shift = Array.isArray(result) ? result[0] : result;
+    // Create new shift for the authenticated user using Prisma ORM
+    const shift = await prisma.shift.create({
+      data: {
+        date,
+        startTime,
+        endTime,
+        coworkers: coworkers || '',
+        notes: notes || '',
+        uploaded: false,
+        userId: authUser.userId,
+      },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        coworkers: true,
+        notes: true,
+        uploaded: true,
+        createdAt: true,
+        userId: true,
+      }
+    });
 
     return NextResponse.json({ shift }, { status: 201 });
   } catch (error) {
@@ -71,5 +134,7 @@ export async function POST(req: NextRequest) {
       { error: 'Failed to create shift' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

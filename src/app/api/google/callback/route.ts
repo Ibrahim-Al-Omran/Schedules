@@ -26,17 +26,20 @@ export async function GET(request: NextRequest) {
     const oauth2Client = getGoogleOAuth2Client();
     const { tokens } = await oauth2Client.getToken(code);
     
-    // Store the tokens in the database
-    await prisma.$queryRaw`
-      UPDATE "User" 
-      SET "googleAccessToken" = ${tokens.access_token},
-          "googleRefreshToken" = ${tokens.refresh_token}
-      WHERE id = ${authUser.userId}
-    `;
+    // Store the tokens in the database using Prisma ORM
+    await prisma.user.update({
+      where: { id: authUser.userId },
+      data: {
+        googleAccessToken: tokens.access_token || null,
+        googleRefreshToken: tokens.refresh_token || null,
+      }
+    });
     
     return NextResponse.redirect(new URL('/dashboard?google_connected=true', request.url));
   } catch (error) {
     console.error('Google callback error:', error);
     return NextResponse.redirect(new URL('/dashboard?google_error=callback_failed', request.url));
+  } finally {
+    await prisma.$disconnect();
   }
 }

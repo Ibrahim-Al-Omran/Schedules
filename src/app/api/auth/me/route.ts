@@ -2,13 +2,6 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-interface UserWithGoogleToken {
-  id: string;
-  name: string;
-  email: string;
-  hasGoogleToken: boolean;
-}
-
 export async function GET(req: NextRequest) {
   try {
     const authUser = getAuthUser(req);
@@ -20,26 +13,28 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get user with Google token status
-    const userWithTokens = await prisma.$queryRaw`
-      SELECT id, name, email, "googleAccessToken" IS NOT NULL as "hasGoogleToken"
-      FROM "User" 
-      WHERE id = ${authUser.userId}
-    ` as UserWithGoogleToken[];
+    // Get user with Google token status using Prisma ORM
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        googleAccessToken: true,
+      }
+    });
 
-    if (!userWithTokens.length) {
+    if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    const user = userWithTokens[0];
-
     return NextResponse.json({
       user: {
         ...authUser,
-        googleAccessToken: user.hasGoogleToken
+        googleAccessToken: !!user.googleAccessToken
       },
     });
   } catch (error) {
@@ -53,5 +48,8 @@ export async function GET(req: NextRequest) {
       { error: 'Authentication failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 401 }
     );
+  } finally {
+    // Ensure clean disconnection in serverless environment
+    await prisma.$disconnect();
   }
 }

@@ -3,21 +3,6 @@ import { getAuthUser } from '@/lib/auth';
 import { getGoogleCalendarClient, CalendarEvent } from '@/lib/google';
 import { prisma } from '@/lib/prisma';
 
-interface UserTokens {
-  googleAccessToken: string;
-  googleRefreshToken: string;
-}
-
-interface ShiftData {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  coworkers?: string;
-  notes?: string;
-  uploaded?: boolean;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const authUser = getAuthUser(request);
@@ -50,27 +35,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's Google access token
-    const user = await prisma.$queryRaw`
-      SELECT "googleAccessToken", "googleRefreshToken" 
-      FROM "User" 
-      WHERE id = ${authUser.userId}
-    ` as UserTokens[];
+    // Get user's Google access token using Prisma ORM
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      select: {
+        googleAccessToken: true,
+        googleRefreshToken: true,
+      }
+    });
 
-    if (!user.length || !user[0].googleAccessToken) {
+    if (!user || !user.googleAccessToken) {
       return NextResponse.json(
         { error: 'Google Calendar not connected. Please connect your Google account first.' },
         { status: 400 }
       );
     }
 
-    // Get user's shifts that haven't been uploaded yet
-    const shifts = await prisma.$queryRaw`
-      SELECT s.id, s.date, s."startTime", s."endTime", s.coworkers, s.notes, s.uploaded
-      FROM "Shift" s
-      WHERE s."userId" = ${authUser.userId} AND s.uploaded = false
-      ORDER BY s.date ASC
-    ` as ShiftData[];
+    // Get user's shifts that haven't been uploaded yet using Prisma ORM
+    const shifts = await prisma.shift.findMany({
+      where: {
+        userId: authUser.userId,
+        uploaded: false,
+      },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        coworkers: true,
+        notes: true,
+        uploaded: true,
+      },
+      orderBy: { date: 'asc' }
+    });
 
     if (shifts.length === 0) {
       return NextResponse.json(
@@ -79,7 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const calendar = getGoogleCalendarClient(user[0].googleAccessToken);
+    const calendar = getGoogleCalendarClient(user.googleAccessToken);
     let createdEvents = 0;
     const errors: string[] = [];
 
@@ -116,12 +113,11 @@ export async function POST(request: NextRequest) {
           requestBody: event
         });
 
-        // Mark shift as uploaded in the database
-        await prisma.$executeRaw`
-          UPDATE "Shift" 
-          SET uploaded = true 
-          WHERE id = ${shift.id}
-        `;
+        // Mark shift as uploaded in the database using Prisma ORM
+        await prisma.shift.update({
+          where: { id: shift.id },
+          data: { uploaded: true }
+        });
 
         createdEvents++;
       } catch (eventError) {
@@ -143,6 +139,8 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to sync with Google Calendar' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

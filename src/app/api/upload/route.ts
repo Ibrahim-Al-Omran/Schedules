@@ -96,14 +96,29 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Save shifts to database for the authenticated user using raw SQL
+    // Save shifts to database for the authenticated user using Prisma ORM
     const createdShifts = await Promise.all(
       userShifts.map(shift => 
-        prisma.$queryRaw`
-          INSERT INTO "Shift" (id, date, "startTime", "endTime", coworkers, notes, uploaded, "createdAt", "userId")
-          VALUES (gen_random_uuid(), ${shift.date}, ${shift.startTime}, ${shift.endTime}, ${shift.coworkers}, ${shift.notes || ''}, false, NOW(), ${authUser.userId})
-          RETURNING id, date, "startTime", "endTime", coworkers, notes, uploaded
-        `
+        prisma.shift.create({
+          data: {
+            date: shift.date,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            coworkers: shift.coworkers,
+            notes: shift.notes || '',
+            uploaded: false,
+            userId: authUser.userId,
+          },
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            coworkers: true,
+            notes: true,
+            uploaded: true,
+          }
+        })
       )
     );
 
@@ -118,5 +133,7 @@ export async function POST(req: NextRequest) {
       { error: 'Failed to process file' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
