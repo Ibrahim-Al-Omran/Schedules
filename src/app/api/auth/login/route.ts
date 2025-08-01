@@ -92,6 +92,11 @@ export async function POST(req: Request) {
       environment: process.env.NODE_ENV,
       jwtSecretSet: !!process.env.JWT_SECRET,
     });
+    console.log('Environment variables:', {
+      DATABASE_URL: process.env.DATABASE_URL,
+      JWT_SECRET: process.env.JWT_SECRET,
+      NODE_ENV: process.env.NODE_ENV,
+    });
     return NextResponse.json(
       { error: 'Login failed' },
       { status: 500 }
