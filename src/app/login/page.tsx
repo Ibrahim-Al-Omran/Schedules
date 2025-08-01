@@ -56,18 +56,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Work Scheduler</h1>
-          <h2 className="mt-6 text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Schedules</h1>
+          <h2 className="mt-4 sm:mt-6 text-xl sm:text-2xl font-semibold text-gray-800">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </h2>
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-6 sm:py-8 px-4 sm:px-10 shadow-xl rounded-4xl border" style={{ borderColor: '#C8A5FF' }}>
           <form className="space-y-6" onSubmit={handleSubmit}>
             {!isLogin && (
               <div>
@@ -82,7 +82,8 @@ export default function LoginPage() {
                     required={!isLogin}
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="text-gray-900 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="text-gray-800 appearance-none block w-full px-3 py-2 border rounded-4xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                    style={{ borderColor: '#C8A5FF' }}
                   />
                 </div>
               </div>
@@ -101,7 +102,8 @@ export default function LoginPage() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className="text-gray-900 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="text-gray-800 appearance-none block w-full px-3 py-2 border rounded-4xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                  style={{ borderColor: '#C8A5FF' }}
                 />
               </div>
             </div>
@@ -119,13 +121,14 @@ export default function LoginPage() {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  className="text-gray-900 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="text-gray-800 appearance-none block w-full px-3 py-2 border rounded-4xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                  style={{ borderColor: '#C8A5FF' }}
                 />
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              <div className="border rounded-4xl text-red-700 px-4 py-3" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
                 {error}
               </div>
             )}
@@ -134,7 +137,8 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="w-full flex justify-center py-2 px-4 border rounded-4xl shadow-sm text-sm font-medium text-gray-700 transition-colors disabled:opacity-50 hover:bg-gray-100"
+                style={{ backgroundColor: '#E7D8FF', borderColor: '#C8A5FF' }}
               >
                 {loading ? 'Please wait...' : (isLogin ? 'Sign in' : 'Create account')}
               </button>
@@ -150,7 +154,7 @@ export default function LoginPage() {
                   setError('');
                   setFormData({ name: '', email: '', password: '' });
                 }}
-                className="text-blue-600 hover:text-blue-500"
+                className="text-gray-600 hover:text-gray-800 px-4 py-2"
               >
                 {isLogin 
                   ? "Don't have an account? Sign up" 

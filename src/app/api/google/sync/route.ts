@@ -1,0 +1,158 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth';
+import { getGoogleCalendarClient, CalendarEvent } from '@/lib/google';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function POST(request: NextRequest) {
+  try {
+    const authUser = getAuthUser(request as any);
+
+    if (!authUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid JSON body' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Received request body:', body); // Debug log
+
+    const calendarId = body.calendarId;
+
+    if (!calendarId) {
+      return NextResponse.json(
+        { error: 'Calendar ID is required.' },
+        { status: 400 }
+      );
+    }
+
+    // Get user's Google access token
+    const user = await prisma.$queryRaw`
+      SELECT "googleAccessToken", "googleRefreshToken" 
+      FROM "User" 
+      WHERE id = ${authUser.userId}
+    ` as any[];
+
+    if (!user.length || !user[0].googleAccessToken) {
+      return NextResponse.json(
+        { error: 'Google Calendar not connected. Please connect your Google account first.' },
+        { status: 400 }
+      );
+    }
+
+    // Get user's shifts
+    const shifts = await prisma.$queryRaw`
+      SELECT s.id, s.date, s."startTime", s."endTime", s.coworkers, s.notes
+      FROM "Shift" s
+      WHERE s."userId" = ${authUser.userId}
+      ORDER BY s.date ASC
+    ` as any[];
+
+    if (shifts.length === 0) {
+      return NextResponse.json(
+        { error: 'No shifts found to sync' },
+        { status: 400 }
+      );
+    }
+
+    const calendar = getGoogleCalendarClient(user[0].googleAccessToken);
+    let createdEvents = 0;
+    let errors: string[] = [];
+
+    for (const shift of shifts) {
+      try {
+        // Convert date and times to proper datetime format
+        const startDateTime = convertToDateTime(shift.date, shift.startTime);
+        const endDateTime = convertToDateTime(shift.date, shift.endTime);
+
+        if (!startDateTime || !endDateTime) {
+          errors.push(`Invalid date/time format for shift on ${shift.date}`);
+          continue;
+        }
+
+        const event: CalendarEvent = {
+          summary: `Work Shift`,
+          description: [
+            `📅 Work Shift`,
+            `🕐 ${shift.startTime} - ${shift.endTime}`,
+            shift.notes ? `📝 Notes: ${shift.notes}` : ''
+          ].filter(Boolean).join('\n\n'),
+          start: {
+            dateTime: startDateTime,
+            timeZone: 'America/Toronto' // Adjust timezone as needed
+          },
+          end: {
+            dateTime: endDateTime,
+            timeZone: 'America/Toronto' // Adjust timezone as needed
+          }
+        };
+
+        await calendar.events.insert({
+          calendarId: calendarId,
+          requestBody: event
+        });
+
+        createdEvents++;
+      } catch (eventError) {
+        console.error(`Error creating event for shift on ${shift.date}:`, eventError);
+        errors.push(`Failed to create event for ${shift.date}`);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully synced ${createdEvents} shifts to Google Calendar`,
+      createdEvents,
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    console.error('Google Calendar sync error:', error);
+    return NextResponse.json(
+      { error: 'Failed to sync with Google Calendar' },
+      { status: 500 }
+    );
+  }
+}
+
+function convertToDateTime(date: string, time: string): string | null {
+  try {
+    // Date should be in YYYY-MM-DD format
+    // Time should be in "HH:MM AM/PM" format
+    
+    // Parse time
+    const timeMatch = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeMatch) return null;
+    
+    let hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2]);
+    const period = timeMatch[3].toUpperCase();
+    
+    // Convert to 24-hour format
+    if (period === 'AM' && hours === 12) {
+      hours = 0;
+    } else if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    }
+    
+    // Create ISO datetime string
+    const hoursStr = hours.toString().padStart(2, '0');
+    const minutesStr = minutes.toString().padStart(2, '0');
+    
+    return `${date}T${hoursStr}:${minutesStr}:00`;
+  } catch (error) {
+    console.error('Date conversion error:', error);
+    return null;
+  }
+}

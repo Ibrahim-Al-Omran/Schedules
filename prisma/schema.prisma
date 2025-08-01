@@ -11,15 +11,17 @@ generator client {
 
 // User model - represents a user in our app
 model User {
-  id        String   @id @default(uuid()) // Primary key, auto-generated UUID
-  name      String                        // User's display name
-  email     String   @unique              // Email must be unique across all users
-  password  String                        // Hashed password for authentication
-  createdAt DateTime @default(now())      // Automatically set when user is created
-  updatedAt DateTime @updatedAt           // Automatically updated when user is modified
+  id                 String   @id @default(uuid()) // Primary key, auto-generated UUID
+  name               String                        // User's display name
+  email              String   @unique              // Email must be unique across all users
+  password           String                        // Hashed password for authentication
+  googleAccessToken  String?                       // Google Calendar access token
+  googleRefreshToken String?                       // Google Calendar refresh token
+  createdAt          DateTime @default(now())      // Automatically set when user is created
+  updatedAt          DateTime @updatedAt           // Automatically updated when user is modified
   
   // Relationships - one user can have many shifts
-  shifts    Shift[]  // This creates a one-to-many relationship with Shift
+  shifts             Shift[]  // This creates a one-to-many relationship with Shift
 }
 
 // Shift model - represents work shifts

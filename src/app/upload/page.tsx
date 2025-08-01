@@ -83,9 +83,9 @@ export default function UploadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: '#C8A5FF' }}></div>
           <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
@@ -93,11 +93,11 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Upload Schedule</h1>
-          <p className="mt-2 text-gray-600">
+    <div className="min-h-screen bg-white py-6 sm:py-12 px-4">
+      <div className="max-w-sm sm:max-w-md mx-auto bg-white rounded-4xl shadow-xl p-4 sm:p-6 border" style={{ borderColor: '#C8A5FF' }}>
+        <div className="text-center mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Upload Schedule</h1>
+          <p className="mt-2 text-sm sm:text-base text-gray-600">
             Upload your XLSX schedule file to import shifts
           </p>
         </div>
@@ -107,19 +107,27 @@ export default function UploadPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Choose XLSX File
             </label>
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
+            <div className="relative">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                required
+              />
+              <div className="w-full px-4 py-3 border rounded-4xl focus-within:ring-2 focus-within:ring-purple-200 text-gray-800 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                style={{ borderColor: '#C8A5FF' }}>
+                <span className="text-gray-600">
+                  {file ? `${file.name} (${(file.size / 1024).toFixed(1)} KB)` : "Choose File"}
+                </span>
+              </div>
+            </div>
           </div>
 
           {file && (
-            <div className="p-3 bg-blue-50 rounded-md">
-              <p className="text-sm text-blue-700">
-                Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+            <div className="p-3 rounded-4xl border bg-green-50" style={{ borderColor: '#10b981' }}>
+              <p className="text-sm text-green-700">
+                File selected successfully!
               </p>
             </div>
           )}
@@ -127,11 +135,12 @@ export default function UploadPage() {
           <button
             type="submit"
             disabled={!file || uploading}
-            className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+            className={`w-full py-2 px-4 rounded-4xl font-medium transition-colors ${
               !file || uploading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            } transition-colors`}
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : 'text-gray-700 border hover:bg-gray-100'
+            }`}
+            style={!file || uploading ? {} : { backgroundColor: '#E7D8FF', borderColor: '#C8A5FF' }}
           >
             {uploading ? 'Uploading...' : 'Upload File'}
           </button>
@@ -139,11 +148,12 @@ export default function UploadPage() {
 
         {result && (
           <div
-            className={`mt-4 p-4 rounded-md ${
+            className={`mt-4 p-4 rounded-4xl border ${
               result.success
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
+                ? 'bg-green-50'
+                : 'bg-red-50'
             }`}
+            style={{ borderColor: result.success ? '#10b981' : '#ef4444' }}
           >
             <div className="flex">
               <div className="flex-shrink-0">
@@ -174,7 +184,7 @@ export default function UploadPage() {
         <div className="mt-6 text-center">
           <a
             href="/dashboard"
-            className="text-blue-600 hover:text-blue-800 text-sm"
+            className="text-gray-600 hover:text-gray-800 text-sm"
           >
             ← Back to Dashboard
           </a>
