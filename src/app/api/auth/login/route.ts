@@ -21,7 +21,12 @@ export async function POST(req: Request) {
     // Find user by email using raw SQL
     const users = await prisma.$queryRaw`
       SELECT id, name, email, password FROM "User" WHERE email = ${email}
-    `;
+    ` as Array<{
+      id: string;
+      name: string;
+      email: string;
+      password: string;
+    }>;
 
     console.log('Login attempt for email:', email);
     console.log('Users found:', users.length);
