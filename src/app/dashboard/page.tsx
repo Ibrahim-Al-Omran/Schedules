@@ -6,6 +6,7 @@ import CalendarView from '@/components/CalendarView';
 import ShiftForm from '@/components/ShiftForm';
 import { Shift } from '@/types/shift';
 import { AuthUser } from '@/types/user';
+import { debounceRequest } from '@/lib/debounce';
 
 export default function DashboardPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -20,7 +21,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const checkAuth = useCallback(async () => {
-    try {
+    return debounceRequest('auth-check', async () => {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
@@ -30,18 +31,14 @@ export default function DashboardPage() {
       } else {
         router.push('/login');
       }
-    } catch (error) {
+    }).catch(error => {
       console.error('Auth check failed:', error);
       router.push('/login');
-    }
+    });
   }, [router]);
 
   const fetchShifts = useCallback(async () => {
-    // Prevent multiple simultaneous fetches
-    if (loading) return;
-    
-    try {
-      setLoading(true);
+    return debounceRequest('fetch-shifts', async () => {
       const response = await fetch('/api/shifts');
       if (response.ok) {
         const data = await response.json();
@@ -49,23 +46,24 @@ export default function DashboardPage() {
       } else if (response.status === 401) {
         router.push('/login');
       }
-    } catch (error) {
+    }).catch(error => {
       console.error('Error fetching shifts:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, router]);
+    });
+  }, [router]);
 
   // Check authentication and fetch data sequentially
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
+        setLoading(true);
         // First check authentication
         await checkAuth();
         // Then fetch shifts
         await fetchShifts();
       } catch (error) {
         console.error('Dashboard initialization failed:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -138,7 +136,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteShift = async (shiftId: string) => {
-    try {
+    return debounceRequest(`delete-shift-${shiftId}`, async () => {
       const response = await fetch(`/api/shifts/${shiftId}`, {
         method: 'DELETE',
       });
@@ -152,11 +150,11 @@ export default function DashboardPage() {
         setFeedbackMessage(errorData.error || 'Failed to delete shift');
         setTimeout(() => setFeedbackMessage(null), 3000);
       }
-    } catch (error) {
+    }).catch(error => {
       console.error('Error deleting shift:', error);
       setFeedbackMessage('Failed to delete shift');
       setTimeout(() => setFeedbackMessage(null), 3000);
-    }
+    });
   };
 
   const handleLogout = async () => {

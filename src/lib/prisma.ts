@@ -7,18 +7,22 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'], // Reduce logging
     datasources: {
       db: {
         url: process.env.DATABASE_URL
       }
     },
-    // Configure for better serverless compatibility
+    // Optimize for serverless environments
     transactionOptions: {
-      maxWait: 5000, // 5 seconds
-      timeout: 10000, // 10 seconds
+      maxWait: 2000, // 2 seconds (reduced from 5)
+      timeout: 5000, // 5 seconds (reduced from 10)
     },
   });
 
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// Auto-disconnect on process termination for better cleanup
+process.on('SIGINT', () => prisma.$disconnect());
+process.on('SIGTERM', () => prisma.$disconnect());

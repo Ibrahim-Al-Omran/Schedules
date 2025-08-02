@@ -15,24 +15,17 @@ export async function DELETE(
 
     const { id: shiftId } = await params;
 
-    // Verify the shift belongs to the current user
-    const shift = await prisma.shift.findFirst({
+    // Use a single operation to verify ownership and delete
+    const deletedShift = await prisma.shift.deleteMany({
       where: {
         id: shiftId,
         userId: authUser.userId
       }
     });
 
-    if (!shift) {
+    if (deletedShift.count === 0) {
       return NextResponse.json({ error: 'Shift not found' }, { status: 404 });
     }
-
-    // Delete the shift
-    await prisma.shift.delete({
-      where: {
-        id: shiftId
-      }
-    });
 
     return NextResponse.json({ message: 'Shift deleted successfully' });
   } catch (error) {
@@ -41,5 +34,8 @@ export async function DELETE(
       { error: 'Failed to delete shift' },
       { status: 500 }
     );
+  } finally {
+    // Ensure clean disconnection in serverless environment
+    await prisma.$disconnect();
   }
 }
