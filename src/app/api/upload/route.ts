@@ -96,35 +96,66 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Save shifts to database for the authenticated user using Prisma ORM
-    const createdShifts = await Promise.all(
-      userShifts.map(shift => 
-        prisma.shift.create({
-          data: {
-            date: shift.date,
-            startTime: shift.startTime,
-            endTime: shift.endTime,
-            coworkers: shift.coworkers,
-            notes: shift.notes || '',
-            uploaded: false,
-            userId: authUser.userId,
-          },
-          select: {
-            id: true,
-            date: true,
-            startTime: true,
-            endTime: true,
-            coworkers: true,
-            notes: true,
-            uploaded: true,
+    // Use a transaction to ensure data consistency
+    const result = await prisma.$transaction(async (tx) => {
+      // Check for existing shifts to prevent duplicates
+      const existingShifts = await tx.shift.findMany({
+        where: {
+          userId: authUser.userId,
+          date: {
+            in: userShifts.map(shift => shift.date)
           }
-        })
-      )
-    );
+        },
+        select: {
+          date: true,
+          startTime: true,
+          endTime: true,
+        }
+      });
+
+      // Filter out shifts that already exist (same date, start time, end time)
+      const newShifts = userShifts.filter(shift => {
+        const exists = existingShifts.some(existing => 
+          existing.date === shift.date && 
+          existing.startTime === shift.startTime && 
+          existing.endTime === shift.endTime
+        );
+        return !exists;
+      });
+
+      if (newShifts.length === 0) {
+        return {
+          createdShifts: [],
+          skipped: userShifts.length,
+          message: 'All shifts already exist in the database'
+        };
+      }
+
+      // Create all shifts in the transaction
+      const createdShifts = await tx.shift.createMany({
+        data: newShifts.map(shift => ({
+          date: shift.date,
+          startTime: shift.startTime,
+          endTime: shift.endTime,
+          coworkers: shift.coworkers,
+          notes: shift.notes || '',
+          uploaded: false,
+          userId: authUser.userId,
+        })),
+        skipDuplicates: true,
+      });
+
+      return {
+        createdShifts,
+        skipped: userShifts.length - newShifts.length,
+        message: 'File parsed and shifts saved successfully'
+      };
+    });
 
     return NextResponse.json({ 
-      message: 'File parsed and shifts saved successfully',
-      count: createdShifts.length,
+      message: result.message,
+      count: Array.isArray(result.createdShifts) ? 0 : result.createdShifts.count,
+      skipped: result.skipped,
       rows: rows.length 
     });
   } catch (error) {

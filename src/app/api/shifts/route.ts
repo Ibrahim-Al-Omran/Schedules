@@ -30,6 +30,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Add a small delay to prevent rapid-fire requests
+    if (process.env.NODE_ENV === 'production') {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     // Fetch shifts for the authenticated user only using Prisma ORM
     const shifts: ShiftWithUser[] = await prisma.shift.findMany({
       where: { userId: authUser.userId },

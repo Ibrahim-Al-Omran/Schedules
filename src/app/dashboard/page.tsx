@@ -37,6 +37,9 @@ export default function DashboardPage() {
   }, [router]);
 
   const fetchShifts = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (loading) return;
+    
     try {
       setLoading(true);
       const response = await fetch('/api/shifts');
@@ -51,12 +54,22 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [loading, router]);
 
-  // Check authentication and fetch data
+  // Check authentication and fetch data sequentially
   useEffect(() => {
-    checkAuth();
-    fetchShifts();
+    const initializeDashboard = async () => {
+      try {
+        // First check authentication
+        await checkAuth();
+        // Then fetch shifts
+        await fetchShifts();
+      } catch (error) {
+        console.error('Dashboard initialization failed:', error);
+      }
+    };
+
+    initializeDashboard();
     
     // Check for Google Calendar connection status from URL params
     const urlParams = new URLSearchParams(window.location.search);
@@ -73,11 +86,17 @@ export default function DashboardPage() {
     }
   }, [checkAuth, fetchShifts]);
 
-  // Also refresh shifts when the component becomes visible again (e.g., after upload)
+  // Debounced refresh shifts when the component becomes visible again
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        fetchShifts();
+        // Debounce the fetchShifts call
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          fetchShifts();
+        }, 500); // 500ms delay
       }
     };
 
@@ -85,6 +104,7 @@ export default function DashboardPage() {
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(timeoutId);
     };
   }, [fetchShifts]);
 

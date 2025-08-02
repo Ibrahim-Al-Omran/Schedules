@@ -12,7 +12,12 @@ export const prisma =
       db: {
         url: process.env.DATABASE_URL
       }
-    }
+    },
+    // Configure for better serverless compatibility
+    transactionOptions: {
+      maxWait: 5000, // 5 seconds
+      timeout: 10000, // 10 seconds
+    },
   });
 
 // Prevent multiple instances in development
