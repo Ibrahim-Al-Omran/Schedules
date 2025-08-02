@@ -4,10 +4,10 @@ import { getGoogleOAuth2Client } from '@/lib/google';
 export async function GET() {
   try {
     // Check if environment variables are set
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REDIRECT_URI) {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
       console.error('Missing Google OAuth environment variables');
       return NextResponse.json(
-        { error: 'Google Calendar integration not configured. Please set up GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI in your environment variables.' },
+        { error: 'Google Calendar integration not configured. Please set up GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment variables.' },
         { status: 500 }
       );
     }
@@ -23,6 +23,8 @@ export async function GET() {
     }
 
     console.log('Using Google Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 20) + '...');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('VERCEL_URL:', process.env.VERCEL_URL);
 
     const oauth2Client = getGoogleOAuth2Client();
     
