@@ -27,6 +27,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/favicon.ico?v=2" />
+        <meta name="google-site-verification" content="googledcfb3f2001f6e90b.html" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
