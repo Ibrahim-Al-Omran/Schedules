@@ -62,6 +62,7 @@ export function generateAuthUrl() {
   return oauth2Client.generateAuthUrl({
     access_type: 'offline', // Ensures refresh tokens are returned
     scope: SCOPES, // Include the scopes defined above
+    include_granted_scopes: true, // Enable incremental authorization
   });
 }
 
