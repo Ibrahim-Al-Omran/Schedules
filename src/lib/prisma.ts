@@ -26,3 +26,14 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 // Auto-disconnect on process termination for better cleanup
 process.on('SIGINT', () => prisma.$disconnect());
 process.on('SIGTERM', () => prisma.$disconnect());
+
+// Helper function to ensure connection is ready
+export async function ensureDatabaseConnection() {
+  try {
+    await prisma.$connect();
+    return true;
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    return false;
+  }
+}
