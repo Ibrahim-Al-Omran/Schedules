@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
-// Optimize for serverless cold starts
+// Configure for serverless and dynamic rendering (sets cookies)
+export const dynamic = 'force-dynamic';
 export const maxDuration = 10; // Increase timeout for database operations
 
 export async function POST(req: Request) {

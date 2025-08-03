@@ -5,6 +5,9 @@ import { parseSchedule } from '@/lib/parseSchedule';
 import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Configure as dynamic since it uses authentication (cookies)
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const authUser = getAuthUser(req);

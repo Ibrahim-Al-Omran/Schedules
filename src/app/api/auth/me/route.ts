@@ -2,8 +2,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// Add caching configuration for this route
-export const revalidate = 60; // Cache for 60 seconds
+// Configure route as dynamic since it uses cookies
+export const dynamic = 'force-dynamic';
 export const maxDuration = 10; // Increase timeout for cold starts
 
 export async function GET(req: NextRequest) {

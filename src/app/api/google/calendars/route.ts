@@ -3,6 +3,9 @@ import { getAuthUser } from '@/lib/auth';
 import { getGoogleCalendarClient } from '@/lib/google';
 import { prisma } from '@/lib/prisma';
 
+// Configure as dynamic since it uses authentication (cookies)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const authUser = getAuthUser(request);

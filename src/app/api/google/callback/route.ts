@@ -3,6 +3,9 @@ import { getGoogleOAuth2Client } from '@/lib/google';
 import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Configure as dynamic since it uses authentication (cookies)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

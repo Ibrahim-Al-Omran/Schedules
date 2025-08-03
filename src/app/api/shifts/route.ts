@@ -19,8 +19,8 @@ type ShiftWithUser = {
   };
 };
 
-// Add caching and performance config
-export const revalidate = 30; // Cache for 30 seconds
+// Configure as dynamic since it uses authentication (cookies)
+export const dynamic = 'force-dynamic';
 export const maxDuration = 10; // Increase timeout for cold starts
 
 export async function GET(req: NextRequest) {
