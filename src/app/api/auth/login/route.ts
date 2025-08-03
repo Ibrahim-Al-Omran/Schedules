@@ -131,8 +131,6 @@ export async function POST(req: Request) {
       { error: 'Login failed' },
       { status: 500 }
     );
-  } finally {
-    // Ensure clean disconnection in serverless environment
-    await prisma.$disconnect();
   }
+  // Removed prisma.$disconnect() - let connection pooling handle this
 }

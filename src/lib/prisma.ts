@@ -13,7 +13,7 @@ export const prisma =
         url: process.env.DATABASE_URL
       }
     },
-    // Optimize for serverless environments
+    // Optimize for serverless environments with connection pooling
     transactionOptions: {
       maxWait: 2000, // 2 seconds (reduced from 5)
       timeout: 5000, // 5 seconds (reduced from 10)
@@ -23,9 +23,8 @@ export const prisma =
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Auto-disconnect on process termination for better cleanup
-process.on('SIGINT', () => prisma.$disconnect());
-process.on('SIGTERM', () => prisma.$disconnect());
+// Remove process termination handlers - let connection pooling handle cleanup
+// Note: With connection pooling, manual disconnection can hurt performance
 
 // Helper function to ensure connection is ready
 export async function ensureDatabaseConnection() {

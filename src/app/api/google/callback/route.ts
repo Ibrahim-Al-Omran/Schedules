@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Google callback error:', error);
     return NextResponse.redirect(new URL('/dashboard?google_error=callback_failed', request.url));
-  } finally {
-    await prisma.$disconnect();
   }
+  // Removed prisma.$disconnect() - let connection pooling handle this
 }

@@ -73,12 +73,11 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching shifts:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch shifts' },
+      { error: 'Failed to fetch shifts', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
+  // Removed prisma.$disconnect() - let connection pooling handle this
 }
 
 export async function POST(req: NextRequest) {
@@ -131,10 +130,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error creating shift:', error);
     return NextResponse.json(
-      { error: 'Failed to create shift' },
+      { error: 'Failed to create shift', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
+  // Removed prisma.$disconnect() - let connection pooling handle this
 }

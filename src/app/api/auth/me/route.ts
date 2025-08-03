@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         googleAccessToken: true,
+        googleRefreshToken: true,
       }
     });
 
@@ -31,10 +32,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Check if user has both access and refresh tokens (properly connected)
+    const hasGoogleConnection = !!(user.googleAccessToken && user.googleRefreshToken);
+
     return NextResponse.json({
       user: {
         ...authUser,
-        googleAccessToken: !!user.googleAccessToken
+        googleAccessToken: hasGoogleConnection,
+        // Add debugging info (remove in production)
+        googleTokenDebug: {
+          hasAccessToken: !!user.googleAccessToken,
+          hasRefreshToken: !!user.googleRefreshToken,
+          fullyConnected: hasGoogleConnection
+        }
       },
     });
   } catch (error) {
@@ -48,8 +58,6 @@ export async function GET(req: NextRequest) {
       { error: 'Authentication failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 401 }
     );
-  } finally {
-    // Ensure clean disconnection in serverless environment
-    await prisma.$disconnect();
   }
+  // Removed prisma.$disconnect() - let connection pooling handle this
 }
