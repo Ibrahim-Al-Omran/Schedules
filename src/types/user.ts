@@ -11,4 +11,5 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  googleAccessToken?: boolean; // Indicates if user has Google Calendar connected
 }

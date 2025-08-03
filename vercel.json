@@ -4,7 +4,24 @@
   "framework": "nextjs",
   "functions": {
     "src/app/api/**/*.ts": {
-      "maxDuration": 10
+      "maxDuration": 15
+    },
+    "src/app/api/auth/logout/*.ts": {
+      "maxDuration": 5
+    },
+    "src/app/api/health-edge/*.ts": {
+      "maxDuration": 5
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ]
 }

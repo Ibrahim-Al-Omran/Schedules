@@ -7,6 +7,7 @@ import ShiftForm from '@/components/ShiftForm';
 import { Shift } from '@/types/shift';
 import { AuthUser } from '@/types/user';
 import { debounceRequest } from '@/lib/debounce';
+import { cachedFetch, preloadCriticalData, warmupCriticalEndpoints } from '@/lib/performance';
 
 export default function DashboardPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -22,15 +23,15 @@ export default function DashboardPage() {
 
   const checkAuth = useCallback(async () => {
     return debounceRequest('auth-check', async () => {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        // Check if user has Google Calendar connected
-        setGoogleConnected(!!data.user.googleAccessToken);
-      } else {
-        router.push('/login');
-      }
+      // Use cached fetch for better performance
+      const data = await cachedFetch<{ user: AuthUser }>('/api/auth/me', {
+        ttl: 60000, // Cache for 1 minute
+        key: 'auth-status'
+      });
+      
+      setUser(data.user);
+      // Check if user has Google Calendar connected
+      setGoogleConnected(!!data.user.googleAccessToken);
     }).catch(error => {
       console.error('Auth check failed:', error);
       router.push('/login');
@@ -39,17 +40,27 @@ export default function DashboardPage() {
 
   const fetchShifts = useCallback(async () => {
     return debounceRequest('fetch-shifts', async () => {
-      const response = await fetch('/api/shifts');
-      if (response.ok) {
-        const data = await response.json();
-        setShifts(data.shifts || []);
-      } else if (response.status === 401) {
-        router.push('/login');
-      }
+      // Use cached fetch for shifts
+      const data = await cachedFetch<{ shifts: Shift[] }>('/api/shifts', {
+        ttl: 30000, // Cache for 30 seconds
+        key: 'user-shifts'
+      });
+      
+      setShifts(data.shifts || []);
     }).catch(error => {
       console.error('Error fetching shifts:', error);
+      // If unauthorized, redirect to login
+      if (error.message?.includes('401')) {
+        router.push('/login');
+      }
     });
   }, [router]);
+
+  // Warm up critical endpoints on component mount
+  useEffect(() => {
+    warmupCriticalEndpoints();
+    preloadCriticalData();
+  }, []);
 
   // Check authentication and fetch data sequentially
   useEffect(() => {

@@ -19,6 +19,10 @@ type ShiftWithUser = {
   };
 };
 
+// Add caching and performance config
+export const revalidate = 30; // Cache for 30 seconds
+export const maxDuration = 10; // Increase timeout for cold starts
+
 export async function GET(req: NextRequest) {
   try {
     const authUser = getAuthUser(req);
@@ -30,7 +34,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch shifts for the authenticated user only using Prisma ORM
+    // Fetch shifts for the authenticated user only - optimized query
     const shifts: ShiftWithUser[] = await prisma.shift.findMany({
       where: { userId: authUser.userId },
       select: {

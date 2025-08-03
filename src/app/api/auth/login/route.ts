@@ -5,7 +5,12 @@ import { prisma } from '@/lib/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
+// Optimize for serverless cold starts
+export const maxDuration = 10; // Increase timeout for database operations
+
 export async function POST(req: Request) {
+  const startTime = Date.now();
+  
   try {
     const body = await req.json();
     const { email, password } = body;
@@ -18,21 +23,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log('Login attempt for email:', email);
-    console.log('Environment:', process.env.NODE_ENV);
-    console.log('Database URL exists:', !!process.env.DATABASE_URL);
-    console.log('Database URL preview:', process.env.DATABASE_URL?.substring(0, 20) + '...');
-
-    // Test database connection first
-    try {
-      await prisma.$connect();
-      console.log('Database connected successfully');
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError);
-      throw dbError;
-    }
-
-    // Find user by email using Prisma ORM
+    // Single optimized query - combine user lookup with minimal logging
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -43,38 +34,21 @@ export async function POST(req: Request) {
       }
     });
 
-    console.log('User found:', !!user);
-    
-    // Additional debugging: check if any users exist at all
     if (!user) {
-      const totalUsers = await prisma.user.count();
-      console.log('Total users in database:', totalUsers);
+      // Don't do expensive debugging queries in production
+      if (process.env.NODE_ENV === 'development') {
+        const totalUsers = await prisma.user.count();
+        console.log('Total users in database:', totalUsers);
+      }
       
-      // Check if there's a user with similar email (case issues?)
-      const similarUsers = await prisma.user.findMany({
-        where: {
-          email: {
-            contains: email.toLowerCase(),
-            mode: 'insensitive'
-          }
-        },
-        select: { email: true }
-      });
-      console.log('Users with similar email:', similarUsers);
-    }
-
-    if (!user) {
-      console.log('No user found with email:', email);
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
 
-    console.log('User found, checking password...');
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('Password valid:', isValidPassword);
 
     if (!isValidPassword) {
       return NextResponse.json(
@@ -102,11 +76,11 @@ export async function POST(req: Request) {
         name: user.name,
         email: user.email,
       },
+      // Add performance metrics for debugging
+      ...(process.env.NODE_ENV === 'development' && {
+        performance: { responseTime: `${Date.now() - startTime}ms` }
+      })
     });
-
-    response.headers.set('Access-Control-Allow-Origin', 'https://schedules-ashen.vercel.app');
-    response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
 
     // Set cookie
     response.cookies.set('auth-token', token, {
@@ -119,18 +93,16 @@ export async function POST(req: Request) {
     return response;
   } catch (error) {
     console.error('Login error:', error);
-    const err = error as Error;
-    console.error('Login error details:', {
-      message: err.message,
-      stack: err.stack,
-      environment: process.env.NODE_ENV,
-      jwtSecretSet: !!process.env.JWT_SECRET,
-      databaseUrlSet: !!process.env.DATABASE_URL,
-    });
     return NextResponse.json(
-      { error: 'Login failed' },
+      { 
+        error: 'Login failed',
+        // Add cold start debugging in development
+        ...(process.env.NODE_ENV === 'development' && {
+          performance: { responseTime: `${Date.now() - startTime}ms` }
+        })
+      },
       { status: 500 }
     );
   }
-  // Removed prisma.$disconnect() - let connection pooling handle this
+  // Note: No prisma.$disconnect() - let connection pooling handle this
 }
