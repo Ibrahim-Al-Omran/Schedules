@@ -344,8 +344,15 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
             {day.shifts.map((shift, shiftIndex) => (
               <div
                 key={shiftIndex}
-                className="mt-0.5 sm:mt-1 p-0.5 sm:p-1 text-gray-700 text-xs rounded-lg truncate flex items-center justify-between"
-                style={{ backgroundColor: '#E7D8FF', border: '1px solid #C8A5FF' }}
+                className={`mt-0.5 sm:mt-1 p-0.5 sm:p-1 text-gray-700 text-xs rounded-lg truncate flex items-center justify-between ${
+                  shift.uploaded ? 'shadow-sm' : ''
+                }`}
+                style={{ 
+                  backgroundColor: '#E7D8FF', 
+                  border: shift.uploaded ? '2px solid #C8A5FF' : '1px solid #C8A5FF',
+                  // Ensure peacock color is always used, regardless of sync status
+                  color: '#4B5563'
+                }}
                 title={`${shift.startTime} - ${shift.endTime}${shift.uploaded ? ' (Synced to Google Calendar)' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -355,7 +362,7 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
                 <span className="hidden sm:inline text-xs">{shift.startTime} - {shift.endTime}</span>
                 <span className="sm:hidden text-xs">●</span>
                 {shift.uploaded && (
-                  <span className="text-green-600 text-xs ml-1" title="Synced to Google Calendar">✓</span>
+                  <span className="text-green-600 text-xs ml-1 font-bold" title="Synced to Google Calendar">✓</span>
                 )}
               </div>
             ))}
@@ -386,7 +393,7 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
               </h3>
               <button
                 onClick={() => setSelectedDay(null)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                className="text-gray-500 hover:text-purple-700 p-1 rounded-full hover:bg-purple-50"
                 style={{ 
                   backgroundColor: 'transparent', 
                   borderColor: 'transparent' 
@@ -401,10 +408,20 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
             ) : (
               <div className="space-y-3">
                 {selectedDay.shifts.map((shift, index) => (
-                  <div key={index} className="border border-gray-200 rounded-4xl p-3 sm:p-4">
+                  <div 
+                    key={index} 
+                    className={`border rounded-4xl p-3 sm:p-4 ${shift.uploaded ? 'shadow-sm' : ''}`}
+                    style={{ 
+                      borderColor: '#C8A5FF',
+                      backgroundColor: shift.uploaded ? '#F8F4FF' : 'white'
+                    }}
+                  >
                     <div className="flex justify-between items-start mb-2">
-                      <div className="text-base sm:text-lg font-medium text-gray-800">
+                      <div className="text-base sm:text-lg font-medium text-gray-800 flex items-center gap-2">
                         {shift.startTime} - {shift.endTime}
+                        {shift.uploaded && (
+                          <span className="text-green-600 text-sm font-bold" title="Synced to Google Calendar">✓ Synced</span>
+                        )}
                       </div>
                     </div>
                     

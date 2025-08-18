@@ -7,7 +7,7 @@ import ShiftForm from '@/components/ShiftForm';
 import { Shift } from '@/types/shift';
 import { AuthUser } from '@/types/user';
 import { debounceRequest } from '@/lib/debounce';
-import { cachedFetch, preloadCriticalData, warmupCriticalEndpoints } from '@/lib/performance';
+import { cachedFetch, preloadCriticalData, warmupCriticalEndpoints, clearCache } from '@/lib/performance';
 
 export default function DashboardPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -23,9 +23,11 @@ export default function DashboardPage() {
 
   const checkAuth = useCallback(async () => {
     return debounceRequest('auth-check', async () => {
-      // Use cached fetch for better performance
+      // Use cached fetch for better performance, but allow force refresh after Google connection
+      const shouldSkipCache = new URLSearchParams(window.location.search).get('google_connected') === 'true';
+      
       const data = await cachedFetch<{ user: AuthUser }>('/api/auth/me', {
-        ttl: 60000, // Cache for 1 minute
+        ttl: shouldSkipCache ? 0 : 60000, // Skip cache if just connected Google Calendar
         key: 'auth-status'
       });
       
@@ -83,11 +85,18 @@ export default function DashboardPage() {
     // Check for Google Calendar connection status from URL params
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('google_connected') === 'true') {
+      // Clear auth cache to force fresh data from server
+      clearCache('auth-status');
       setGoogleConnected(true);
       setFeedbackMessage('Google Calendar connected successfully!');
       setTimeout(() => setFeedbackMessage(null), 3000);
       // Clean up URL params
       window.history.replaceState({}, '', '/dashboard');
+      
+      // Force refresh auth data to get updated Google connection status
+      setTimeout(() => {
+        checkAuth();
+      }, 500);
     } else if (urlParams.get('google_error')) {
       setFeedbackMessage('Failed to connect Google Calendar. Please try again.');
       setTimeout(() => setFeedbackMessage(null), 3000);
