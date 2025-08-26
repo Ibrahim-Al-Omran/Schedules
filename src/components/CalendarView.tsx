@@ -344,14 +344,13 @@ export default function CalendarView({ shifts, onDeleteShift }: CalendarViewProp
             {day.shifts.map((shift, shiftIndex) => (
               <div
                 key={shiftIndex}
-                className={`mt-0.5 sm:mt-1 p-0.5 sm:p-1 text-gray-700 text-xs rounded-lg truncate flex items-center justify-between ${
+                className={`mt-0.5 sm:mt-1 p-0.5 sm:p-1 text-xs rounded-lg truncate flex items-center justify-between ${
                   shift.uploaded ? 'shadow-sm' : ''
                 }`}
                 style={{ 
-                  backgroundColor: '#E7D8FF', 
-                  border: shift.uploaded ? '2px solid #C8A5FF' : '1px solid #C8A5FF',
-                  // Ensure peacock color is always used, regardless of sync status
-                  color: '#4B5563'
+                  backgroundColor: '#E7D8FF !important', // Force peacock background
+                  border: '2px solid #C8A5FF !important', // Force peacock border
+                  color: '#4B5563 !important' // Force consistent text color
                 }}
                 title={`${shift.startTime} - ${shift.endTime}${shift.uploaded ? ' (Synced to Google Calendar)' : ''}`}
                 onClick={(e) => {

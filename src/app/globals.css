@@ -107,8 +107,8 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: blur(8px);
 }
 
-/* Ensure all text uses dark gray */
-p, span, div, li {
+/* Ensure text elements use dark gray, but allow divs to have their own styling */
+p, span, li {
   color: var(--foreground-light);
 }
 
