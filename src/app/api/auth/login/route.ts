@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma, executeWithRetry } from '@/lib/prisma';
+import { prisma, executeWithRetry, warmupConnection } from '@/lib/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -13,6 +13,9 @@ export async function POST(req: Request) {
   const startTime = Date.now();
   
   try {
+    // Warm up database connection for serverless cold starts
+    await warmupConnection();
+    
     const body = await req.json();
     const { email, password } = body;
 

@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { prisma, executeWithRetry } from '@/lib/prisma';
+import { prisma, executeWithRetry, warmupConnection } from '@/lib/prisma';
 
 type ShiftWithUser = {
   id: string;
@@ -25,6 +25,9 @@ export const maxDuration = 10; // Increase timeout for cold starts
 
 export async function GET(req: NextRequest) {
   try {
+    // Warm up database connection for serverless cold starts
+    await warmupConnection();
+    
     const authUser = getAuthUser(req);
     
     if (!authUser) {
@@ -88,6 +91,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Warm up database connection for serverless cold starts
+    await warmupConnection();
+    
     const authUser = getAuthUser(req);
     
     if (!authUser) {
