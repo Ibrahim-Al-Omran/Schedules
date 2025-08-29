@@ -42,16 +42,17 @@ export async function executeWithRetry<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3
 ): Promise<T> {
-  let lastError: any;
+  let lastError: unknown;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
       
       // Check if it's a prepared statement conflict
-      if (error?.code === '42P05' || error?.message?.includes('prepared statement')) {
+      const errorObj = error as { code?: string; message?: string };
+      if (errorObj?.code === '42P05' || errorObj?.message?.includes('prepared statement')) {
         console.warn(`Prepared statement conflict on attempt ${attempt}, retrying...`);
         
         // Brief delay before retry to allow statement cleanup

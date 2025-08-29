@@ -1,10 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep Prisma external for proper serverless operation
+  serverExternalPackages: ['@prisma/client'],
+  
   // Optimize for serverless deployment
   experimental: {
-    // Keep Prisma external for proper serverless operation
-    serverComponentsExternalPackages: ['@prisma/client'],
     // Optimize other packages (not Prisma)
     optimizePackageImports: ['bcryptjs', 'jsonwebtoken'],
   },
