@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, executeWithRetry } from '@/lib/prisma';
 
 type ShiftWithUser = {
   id: string;
@@ -35,28 +35,30 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch shifts for the authenticated user only - optimized query
-    const shifts: ShiftWithUser[] = await prisma.shift.findMany({
-      where: { userId: authUser.userId },
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        coworkers: true,
-        notes: true,
-        uploaded: true,
-        createdAt: true,
-        userId: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const shifts: ShiftWithUser[] = await executeWithRetry(async () => {
+      return await prisma.shift.findMany({
+        where: { userId: authUser.userId },
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          coworkers: true,
+          notes: true,
+          uploaded: true,
+          createdAt: true,
+          userId: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
           }
-        }
-      },
-      orderBy: { date: 'desc' }
-    }) as ShiftWithUser[];
+        },
+        orderBy: { date: 'desc' }
+      }) as ShiftWithUser[];
+    });
 
     // Transform the data to match the expected format
     const transformedShifts = shifts.map((shift: ShiftWithUser) => ({
@@ -107,27 +109,29 @@ export async function POST(req: NextRequest) {
     }
 
     // Create new shift for the authenticated user using Prisma ORM
-    const shift = await prisma.shift.create({
-      data: {
-        date,
-        startTime,
-        endTime,
-        coworkers: coworkers || '',
-        notes: notes || '',
-        uploaded: false,
-        userId: authUser.userId,
-      },
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        coworkers: true,
-        notes: true,
-        uploaded: true,
-        createdAt: true,
-        userId: true,
-      }
+    const shift = await executeWithRetry(async () => {
+      return await prisma.shift.create({
+        data: {
+          date,
+          startTime,
+          endTime,
+          coworkers: coworkers || '',
+          notes: notes || '',
+          uploaded: false,
+          userId: authUser.userId,
+        },
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          coworkers: true,
+          notes: true,
+          uploaded: true,
+          createdAt: true,
+          userId: true,
+        }
+      });
     });
 
     return NextResponse.json({ shift }, { status: 201 });

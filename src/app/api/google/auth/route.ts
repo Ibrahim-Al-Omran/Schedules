@@ -25,6 +25,8 @@ export async function GET() {
     console.log('Using Google Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 20) + '...');
     console.log('NODE_ENV:', process.env.NODE_ENV);
     console.log('VERCEL_URL:', process.env.VERCEL_URL);
+    console.log('VERCEL_PROJECT_PRODUCTION_URL:', process.env.VERCEL_PROJECT_PRODUCTION_URL);
+    console.log('NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
 
     const oauth2Client = getGoogleOAuth2Client();
     

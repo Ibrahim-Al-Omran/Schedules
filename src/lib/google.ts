@@ -7,19 +7,30 @@ const SCOPES = [
 
 // Get the base URL for the current environment
 function getBaseUrl(): string {
-  // In production on Vercel
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  
-  // Custom domain or explicit override
+  // Explicit override takes priority
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL;
   }
   
-  // Production fallback (your actual domain)
-  if (process.env.NODE_ENV === 'production') {
+  // In production on Vercel, try multiple environment variables
+  if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
+    // Try Vercel's production URL first
+    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+      return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+    }
+    
+    // Fallback to current deployment URL
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`;
+    }
+    
+    // Last resort hardcoded fallback
     return 'https://schedules-ashen.vercel.app';
+  }
+  
+  // In Vercel preview deployments
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
   }
   
   // Local development
@@ -46,8 +57,15 @@ export function getGoogleCalendarClient(authToken: string) {
 
 export function getGoogleOAuth2Client() {
   const redirectUri = getRedirectUri();
+  const baseUrl = getBaseUrl();
   
-  console.log('Using redirect URI:', redirectUri);
+  console.log('Google OAuth Debug Info:');
+  console.log('- Base URL:', baseUrl);
+  console.log('- Redirect URI:', redirectUri);
+  console.log('- NODE_ENV:', process.env.NODE_ENV);
+  console.log('- VERCEL:', process.env.VERCEL);
+  console.log('- VERCEL_URL:', process.env.VERCEL_URL);
+  console.log('- VERCEL_PROJECT_PRODUCTION_URL:', process.env.VERCEL_PROJECT_PRODUCTION_URL);
   
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,

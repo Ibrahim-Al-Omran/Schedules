@@ -36,3 +36,43 @@ export async function ensureDatabaseConnection() {
     return false;
   }
 }
+
+// Wrapper to handle prepared statement conflicts
+export async function executeWithRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if it's a prepared statement conflict
+      if (error?.code === '42P05' || error?.message?.includes('prepared statement')) {
+        console.warn(`Prepared statement conflict on attempt ${attempt}, retrying...`);
+        
+        // Brief delay before retry to allow statement cleanup
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        
+        // Try to disconnect and reconnect to clear prepared statements
+        try {
+          await prisma.$disconnect();
+          await prisma.$connect();
+        } catch (connError) {
+          console.warn('Connection reset failed:', connError);
+        }
+        
+        continue;
+      }
+      
+      // If it's not a prepared statement error, don't retry
+      throw error;
+    }
+  }
+  
+  // If all retries failed, throw the last error
+  throw lastError;
+}

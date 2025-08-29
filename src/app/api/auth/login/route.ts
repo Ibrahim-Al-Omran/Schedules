@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/lib/prisma';
+import { prisma, executeWithRetry } from '@/lib/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -25,20 +25,24 @@ export async function POST(req: Request) {
     }
 
     // Single optimized query - combine user lookup with minimal logging
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        password: true,
-      }
+    const user = await executeWithRetry(async () => {
+      return await prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          password: true,
+        }
+      });
     });
 
     if (!user) {
       // Don't do expensive debugging queries in production
       if (process.env.NODE_ENV === 'development') {
-        const totalUsers = await prisma.user.count();
+        const totalUsers = await executeWithRetry(async () => {
+          return await prisma.user.count();
+        });
         console.log('Total users in database:', totalUsers);
       }
       
