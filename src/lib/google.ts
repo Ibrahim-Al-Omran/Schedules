@@ -9,31 +9,44 @@ const SCOPES = [
 function getBaseUrl(): string {
   // Explicit override takes priority
   if (process.env.NEXT_PUBLIC_APP_URL) {
+    console.log('Using NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
     return process.env.NEXT_PUBLIC_APP_URL;
   }
   
   // In production on Vercel, try multiple environment variables
   if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
+    console.log('Production Vercel environment detected');
+    console.log('VERCEL_PROJECT_PRODUCTION_URL:', process.env.VERCEL_PROJECT_PRODUCTION_URL);
+    console.log('VERCEL_URL:', process.env.VERCEL_URL);
+    
     // Try Vercel's production URL first
     if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-      return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+      const url = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+      console.log('Using VERCEL_PROJECT_PRODUCTION_URL:', url);
+      return url;
     }
     
     // Fallback to current deployment URL
     if (process.env.VERCEL_URL) {
-      return `https://${process.env.VERCEL_URL}`;
+      const url = `https://${process.env.VERCEL_URL}`;
+      console.log('Using VERCEL_URL:', url);
+      return url;
     }
     
     // Last resort hardcoded fallback
+    console.log('Using hardcoded fallback URL');
     return 'https://schedules-ashen.vercel.app';
   }
   
   // In Vercel preview deployments
   if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+    const url = `https://${process.env.VERCEL_URL}`;
+    console.log('Using preview VERCEL_URL:', url);
+    return url;
   }
   
   // Local development
+  console.log('Using local development URL');
   return 'http://localhost:3000';
 }
 

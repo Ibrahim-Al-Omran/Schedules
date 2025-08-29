@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getGoogleOAuth2Client } from '@/lib/google';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Check if environment variables are set
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
@@ -28,7 +28,22 @@ export async function GET() {
     console.log('VERCEL_PROJECT_PRODUCTION_URL:', process.env.VERCEL_PROJECT_PRODUCTION_URL);
     console.log('NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
 
-    const oauth2Client = getGoogleOAuth2Client();
+    // Get the current request URL to build the correct redirect URI
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    const dynamicRedirectUri = `${baseUrl}/api/google/callback`;
+    
+    console.log('Request URL:', request.url);
+    console.log('Base URL:', baseUrl);
+    console.log('Dynamic Redirect URI:', dynamicRedirectUri);
+
+    // Create OAuth client with dynamic redirect URI
+    const { google } = await import('googleapis');
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      dynamicRedirectUri
+    );
     
     const scopes = [
       'https://www.googleapis.com/auth/calendar',

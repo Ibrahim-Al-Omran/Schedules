@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGoogleOAuth2Client } from '@/lib/google';
 import { getAuthUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, executeWithRetry } from '@/lib/prisma';
 
 // Configure as dynamic since it uses authentication (cookies)
 export const dynamic = 'force-dynamic';
@@ -25,17 +24,33 @@ export async function GET(request: NextRequest) {
     if (!authUser) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
+
+    // Create OAuth client with dynamic redirect URI (same as auth route)
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    const dynamicRedirectUri = `${baseUrl}/api/google/callback`;
     
-    const oauth2Client = getGoogleOAuth2Client();
+    console.log('Callback - Base URL:', baseUrl);
+    console.log('Callback - Dynamic Redirect URI:', dynamicRedirectUri);
+
+    const { google } = await import('googleapis');
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      dynamicRedirectUri
+    );
+    
     const { tokens } = await oauth2Client.getToken(code);
     
     // Store the tokens in the database using Prisma ORM
-    await prisma.user.update({
-      where: { id: authUser.userId },
-      data: {
-        googleAccessToken: tokens.access_token || null,
-        googleRefreshToken: tokens.refresh_token || null,
-      }
+    await executeWithRetry(async () => {
+      return await prisma.user.update({
+        where: { id: authUser.userId },
+        data: {
+          googleAccessToken: tokens.access_token || null,
+          googleRefreshToken: tokens.refresh_token || null,
+        }
+      });
     });
     
     return NextResponse.redirect(new URL('/dashboard?google_connected=true', request.url));
