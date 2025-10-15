@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Sitemap: https://schedulesapp.org/sitemap.xml
+Host: https://schedulesapp.org
+
+# Crawl-delay is optional and might be ignored by major search engines
+# Crawl-delay: 10

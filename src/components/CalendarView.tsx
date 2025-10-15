@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Shift } from '@/types/shift';
 import gsap from 'gsap';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -49,6 +50,24 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
   const dayModalRef = useRef<HTMLDivElement>(null);
   const deleteModalRef = useRef<HTMLDivElement>(null);
   const editModalRef = useRef<HTMLDivElement>(null);
+
+  // Lock body scroll when any modal is open and restore on close
+  useEffect(() => {
+    const anyOpen = !!modalContent || !!shiftToDelete || !!shiftToEdit || !!selectedDay;
+    if (typeof document !== 'undefined') {
+      if (anyOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    }
+
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+      }
+    };
+  }, [modalContent, shiftToDelete, shiftToEdit, selectedDay]);
 
   // Get today's date in local timezone
   const today = new Date();
@@ -696,18 +715,18 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
       </div>
 
       {/* Selected Day Details Modal */}
-      {selectedDay && (
+      {selectedDay && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
-          style={{ backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
           onClick={() => closeModalWithAnimation()}
         >
           <div 
             ref={dayModalRef}
-            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md max-h-80 sm:max-h-96 overflow-y-auto shadow-xl border mx-4" 
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md max-h-80 sm:max-h-96 overflow-y-auto shadow-2xl border mx-4" 
             style={{ 
-              backgroundColor: theme === 'dark' ? '#444443' : 'white',
-              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+              backgroundColor: theme === 'dark' ? '#2F2F2F' : 'white',
+              borderColor: theme === 'dark' ? '#444' : '#C8A5FF'
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -722,14 +741,11 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
               </h3>
               <button
                 onClick={() => closeModalWithAnimation()}
-                className={`p-1 rounded-full ${
-                  theme === 'dark' 
-                    ? 'text-gray-400 hover:text-purple-400 hover:bg-gray-700' 
-                    : 'text-gray-500 hover:text-purple-700 hover:bg-purple-50'
-                }`}
+                className="p-1 rounded-full hover:bg-gray-700"
                 style={{ 
                   backgroundColor: 'transparent', 
-                  borderColor: 'transparent' 
+                  borderColor: 'transparent',
+                  color: theme === 'dark' ? 'white' : '#6B7280'
                 }}
               >
                 ✕
@@ -823,22 +839,23 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal for Shift Details */}
-      {modalContent && (
+      {modalContent && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
-          style={{ backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
           onClick={() => closeModalWithAnimation()}
         >
           <div 
             ref={modalRef}
-            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-2xl border mx-4" 
             style={{ 
-              backgroundColor: theme === 'dark' ? '#444443' : 'white',
-              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+              backgroundColor: theme === 'dark' ? '#2F2F2F' : 'white',
+              borderColor: theme === 'dark' ? '#444' : '#C8A5FF'
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -846,14 +863,11 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
               <h3 className="text-lg font-semibold" style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>Shift Details</h3>
               <button
                 onClick={() => closeModalWithAnimation()}
-                className={`p-1 rounded-full ${
-                  theme === 'dark' 
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
+                className="p-1 rounded-full hover:bg-gray-700"
                 style={{ 
                   backgroundColor: 'transparent', 
-                  borderColor: 'transparent' 
+                  borderColor: 'transparent',
+                  color: theme === 'dark' ? 'white' : '#6B7280'
                 }}
               >
                 ✕
@@ -862,22 +876,23 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
 
             {modalContent}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Confirmation Modal */}
-      {shiftToDelete && (
+      {shiftToDelete && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
-          style={{ backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
           onClick={() => closeModalWithAnimation(() => setShiftToDelete(null))}
         >
           <div 
             ref={deleteModalRef}
-            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-sm shadow-xl border mx-4" 
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-sm shadow-2xl border mx-4" 
             style={{ 
-              backgroundColor: theme === 'dark' ? '#444443' : 'white',
-              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+              backgroundColor: theme === 'dark' ? '#2F2F2F' : 'white',
+              borderColor: theme === 'dark' ? '#444' : '#C8A5FF'
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -910,37 +925,35 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Shift Modal */}
-      {shiftToEdit && (
+      {shiftToEdit && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 flex items-center justify-center z-50 p-6 sm:p-4" 
-          style={{ backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
           onClick={() => closeModalWithAnimation(() => setShiftToEdit(null))}
         >
           <div 
             ref={editModalRef}
-            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-xl border mx-4" 
+            className="rounded-2xl sm:rounded-4xl p-4 sm:p-6 w-full max-w-xs sm:max-w-md shadow-2xl border mx-4" 
             style={{ 
-              backgroundColor: theme === 'dark' ? '#444443' : 'white',
-              borderColor: theme === 'dark' ? '#555' : '#C8A5FF'
+              backgroundColor: theme === 'dark' ? '#2F2F2F' : 'white',
+              borderColor: theme === 'dark' ? '#444' : '#C8A5FF'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Edit Shift</h3>
+              <h3 className="text-lg font-semibold" style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>Edit Shift</h3>
               <button
                 onClick={() => closeModalWithAnimation(() => setShiftToEdit(null))}
-                className={`p-1 rounded-full ${
-                  theme === 'dark' 
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
+                className="p-1 rounded-full hover:bg-gray-700"
                 style={{ 
                   backgroundColor: 'transparent', 
-                  borderColor: 'transparent' 
+                  borderColor: 'transparent',
+                  color: theme === 'dark' ? 'white' : '#6B7280'
                 }}
               >
                 ✕
@@ -952,7 +965,8 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
               theme={theme}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -28,6 +28,17 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/favicon.ico?v=2" />
+        <link rel="canonical" href="https://schedulesapp.org/" />
+        <meta name="robots" content="index, follow" />
+        <meta property="og:site_name" content="Schedules" />
+        <meta property="og:title" content="Schedules - Your all-in-one scheduling solution" />
+        <meta property="og:description" content="Your all-in-one scheduling solution" />
+        <meta property="og:url" content="https://schedulesapp.org/" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Schedules - Your all-in-one scheduling solution" />
+        <meta name="twitter:description" content="Your all-in-one scheduling solution" />
+        <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

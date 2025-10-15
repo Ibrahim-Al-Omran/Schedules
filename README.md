@@ -118,6 +118,26 @@ MIT
 ---
 
 If you want, I can:
+
+## SEO & Search Engine Indexing
+
+Files added for search engines:
+- `public/robots.txt` — allows crawling and points to the sitemap
+- `public/sitemap.xml` — static sitemap with top-level pages
+
+How to verify locally:
+1. Start the dev server: `pnpm dev` or `npm run dev`
+2. Visit `http://localhost:3000/robots.txt` and `http://localhost:3000/sitemap.xml`
+
+Submitting to Google:
+1. Go to Google Search Console and add `https://schedulesapp.org` as a property.
+2. Verify ownership (DNS TXT record recommended).
+3. Open the "Sitemaps" section and submit `/sitemap.xml`.
+4. Use the URL inspection tool to test specific pages.
+
+Notes & next steps:
+- For dynamic sites, consider generating a dynamic sitemap (server-side) when you have many pages.
+- Add structured data (JSON-LD) for richer search results (events, organization) as needed.
 - Expand the Environment Variables section to list every env key discovered in `src/app/api` routes,
 - Add a small local dev checklist and common cURL commands to exercise the API,
 - Or generate a short `DEVELOPING.md` with notes about performance and cold-start debugging.
