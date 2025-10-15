@@ -92,10 +92,10 @@ export default function UploadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? '#1A1A1A' : 'white' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: '#C8A5FF' }}></div>
-          <p className={`mt-4 ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>Loading...</p>
+          <p className="mt-4" style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>Loading...</p>
         </div>
       </div>
     );

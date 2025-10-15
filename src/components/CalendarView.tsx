@@ -56,15 +56,20 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
     const anyOpen = !!modalContent || !!shiftToDelete || !!shiftToEdit || !!selectedDay;
     if (typeof document !== 'undefined') {
       if (anyOpen) {
+        // Get scrollbar width before hiding it
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
         document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
       } else {
         document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
       }
     }
 
     return () => {
       if (typeof document !== 'undefined') {
         document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
       }
     };
   }, [modalContent, shiftToDelete, shiftToEdit, selectedDay]);
