@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface User {
   id: string;
@@ -11,6 +12,7 @@ interface User {
 }
 
 export default function UsersSection() {
+  const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -66,9 +68,9 @@ export default function UsersSection() {
 
   if (loading) {
     return (
-      <div className="p-6 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-2 text-gray-500">Loading users...</p>
+      <div className="p-6 text-center" style={{ backgroundColor: theme === 'dark' ? '#1A1A1A' : 'transparent' }}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto" style={{ borderColor: '#C8A5FF' }}></div>
+        <p className="mt-2 text-sm" style={{ color: theme === 'dark' ? 'white' : '#6B7280' }}>Loading users...</p>
       </div>
     );
   }

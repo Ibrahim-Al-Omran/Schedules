@@ -8,7 +8,7 @@ import { Shift } from '@/types/shift';
 import { AuthUser } from '@/types/user';
 import { debounceRequest } from '@/lib/debounce';
 import { cachedFetch, preloadCriticalData, warmupCriticalEndpoints, clearCache } from '@/lib/performance';
-import { RefreshCw, Moon, Sun } from 'lucide-react';
+import { RefreshCw, Moon, Sun, LogOut } from 'lucide-react';
 import gsap from 'gsap';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [calendars, setCalendars] = useState<Array<{ id: string; summary: string }>>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
   const addFormRef = useRef<HTMLDivElement>(null);
+  const calendarCardRef = useRef<HTMLDivElement>(null);
 
   const checkAuth = useCallback(async () => {
     return debounceRequest('auth-check', async () => {
@@ -173,25 +174,36 @@ export default function DashboardPage() {
   };
 
   const handleDeleteShift = async (shiftId: string) => {
-    return debounceRequest(`delete-shift-${shiftId}`, async () => {
+    // Optimistic UI: Remove shift immediately from UI
+    const deletedShift = shifts.find(shift => shift.id === shiftId);
+    setShifts(prev => prev.filter(shift => shift.id !== shiftId));
+    setFeedbackMessage('Shift deleted successfully');
+    setTimeout(() => setFeedbackMessage(null), 3000);
+
+    // Actual deletion in background
+    try {
       const response = await fetch(`/api/shifts/${shiftId}`, {
         method: 'DELETE',
       });
 
-      if (response.ok) {
-        setShifts(prev => prev.filter(shift => shift.id !== shiftId));
-        setFeedbackMessage('Shift deleted successfully');
-        setTimeout(() => setFeedbackMessage(null), 3000);
-      } else {
+      if (!response.ok) {
+        // If delete fails, restore the shift
+        if (deletedShift) {
+          setShifts(prev => [deletedShift, ...prev]);
+        }
         const errorData = await response.json();
         setFeedbackMessage(errorData.error || 'Failed to delete shift');
         setTimeout(() => setFeedbackMessage(null), 3000);
       }
-    }).catch(error => {
+    } catch (error) {
+      // If delete fails, restore the shift
       console.error('Error deleting shift:', error);
+      if (deletedShift) {
+        setShifts(prev => [deletedShift, ...prev]);
+      }
       setFeedbackMessage('Failed to delete shift');
       setTimeout(() => setFeedbackMessage(null), 3000);
-    });
+    }
   };
 
   const handleUpdateShift = (shiftId: string, updatedShift: Shift) => {
@@ -356,6 +368,23 @@ export default function DashboardPage() {
     }
   }, [showAddForm]);
 
+  // Animate calendar card on mount
+  useEffect(() => {
+    if (calendarCardRef.current && !loading) {
+      gsap.fromTo(
+        calendarCardRef.current,
+        { opacity: 0, y: 20 },
+        { 
+          opacity: 1, 
+          y: 0, 
+          duration: 0.5, 
+          ease: 'power2.out',
+          force3D: true
+        }
+      );
+    }
+  }, [loading]);
+
   // Close modal with animation
   const closeAddFormWithAnimation = () => {
     if (addFormRef.current) {
@@ -374,7 +403,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? '#444443' : 'white' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? '#1A1A1A' : 'white' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: '#C8A5FF' }}></div>
           <p className="mt-4 font-medium" style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>
@@ -423,7 +452,7 @@ export default function DashboardPage() {
                 title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {theme === 'dark' ? (
-                  <Sun className="w-4 h-4" style={{ color: '#FFFFFF' }} />
+                  <Sun className="w-4 h-4" style={{ color: '#000000' }} />
                 ) : (
                   <Moon className="w-4 h-4" style={{ color: '#000000' }} />
                 )}
@@ -496,17 +525,17 @@ export default function DashboardPage() {
               )}
               <button
                 onClick={handleLogout}
-                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm ml-auto flex items-center gap-1 ${
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-4xl transition-colors border text-xs sm:text-sm ml-auto flex items-center gap-1.5 ${
                   theme === 'dark' ? 'hover:bg-red-900' : 'hover:bg-red-100'
                 }`}
                 style={{ 
                   backgroundColor: '#FDE2E2', 
                   borderColor: theme === 'dark' ? '#666' : '#F5A5A5',
-                  color: theme === 'dark' ? '#FFFFFF' : '#000000'
+                  color: theme === 'dark' ? '#000000' : '#000000'
                 }}
                 title="Logout"
               >
-                <span>↗</span>
+                <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Logout</span>
               </button>
               </div>
@@ -528,9 +557,13 @@ export default function DashboardPage() {
         )}
         
         {/* Fullscreen Calendar View */}
-        <div className="rounded-2xl sm:rounded-4xl shadow-lg overflow-hidden" style={{ 
-          backgroundColor: theme === 'dark' ? '#444443' : 'white'
-        }}>
+        <div 
+          ref={calendarCardRef}
+          className="rounded-2xl sm:rounded-4xl shadow-lg overflow-hidden" 
+          style={{ 
+            backgroundColor: theme === 'dark' ? '#444443' : 'white'
+          }}
+        >
           <CalendarView shifts={shifts} onDeleteShift={handleDeleteShift} onUpdateShift={handleUpdateShift} />
         </div>
 
@@ -551,9 +584,12 @@ export default function DashboardPage() {
                 className={`flex-1 px-3 py-2 text-sm sm:text-base rounded-xl sm:rounded-4xl border focus:ring-2 focus:ring-purple-500 focus:outline-none ${
                   theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
                 }`}
-                style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+                style={{ 
+                  borderColor: theme === 'dark' ? '#555' : '#C8A5FF',
+                  color: selectedCalendar ? undefined : '#4B5563'
+                }}
               >
-                <option value="">Select a calendar</option>
+                <option value="" style={{ color: '#4B5563' }}>Select a calendar</option>
                 {calendars.map((calendar) => (
                   <option key={calendar.id} value={calendar.id}>
                     {calendar.summary}

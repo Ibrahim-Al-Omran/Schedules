@@ -124,20 +124,26 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
   useEffect(() => {
     if (calendarGridRef.current) {
       const days = calendarGridRef.current.querySelectorAll('.calendar-day');
-      gsap.fromTo(
+      
+      // Kill any existing animations first
+      gsap.killTweensOf(days);
+      
+      // Set immediate state to prevent stretching
+      gsap.set(days, { opacity: 0, y: 0, scale: 1 });
+      
+      gsap.to(
         days,
-        { opacity: 0, y: 10 },
         {
           opacity: 1,
-          y: 0,
-          duration: 0.25,
-          stagger: 0.008,
-          ease: 'power2.out',
-          force3D: true // GPU acceleration
+          duration: 0.3,
+          stagger: 0.01,
+          ease: 'power1.out',
+          force3D: true, // GPU acceleration
+          clearProps: 'transform,opacity' // Only clear animation props, keep border colors
         }
       );
     }
-  }, [currentDate, shifts]);
+  }, [currentDate, viewMode]); // Only animate on month/view change, not shifts
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setIsTransitioning(true);
@@ -593,7 +599,7 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
       </div>
 
       {/* Calendar Grid - Grid-like with inner borders only */}
-      <div ref={calendarGridRef} className={`grid grid-cols-7 transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-50' : 'opacity-100'} overflow-hidden rounded-2xl sm:rounded-4xl`}>
+      <div ref={calendarGridRef} className={`grid grid-cols-7 overflow-hidden rounded-2xl sm:rounded-4xl`}>
         {/* Day headers */}
         {dayNames.map((day, idx) => (
           <div 
@@ -620,7 +626,7 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
               key={index}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, day.date)}
-              className={`calendar-day ${viewMode === 'week' ? 'min-h-48 sm:min-h-56 md:min-h-64 lg:min-h-72' : 'min-h-24 sm:min-h-28 md:min-h-36 lg:min-h-40'} p-2 sm:p-3 cursor-pointer relative transition-all duration-500 ease-in-out ${
+              className={`calendar-day ${viewMode === 'week' ? 'h-48 sm:h-56 md:h-64 lg:h-72' : 'h-24 sm:h-28 md:h-36 lg:h-40'} p-2 sm:p-3 cursor-pointer relative transition-colors duration-150 ${
                 !isRightEdge ? 'border-r' : ''
               } ${!isBottomEdge ? 'border-b' : ''} ${
                 !day.isCurrentMonth ? 'opacity-30' : ''
@@ -629,7 +635,7 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
                   ? 'bg-[#3A3A3A] hover:bg-[#4A4A4A]' 
                   : 'bg-white hover:bg-gray-50'
               }`}
-              style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
+              style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF', willChange: 'background-color' }}
               onClick={() => setSelectedDay(day)}
             >
               <div className={`text-sm sm:text-base md:text-lg font-semibold mb-2 ${
@@ -876,11 +882,11 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
-              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Delete Shift</h3>
-              <p className={`mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-600'}`}>
+              <h3 className={`text-lg font-semibold mb-4`} style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>Delete Shift</h3>
+              <p className="mb-6" style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>
                 Are you sure you want to delete this shift?
                 <br />
-                <span className="font-medium">
+                <span className="font-medium" style={{ color: theme === 'dark' ? 'white' : '#1F2937' }}>
                   {shiftToDelete.startTime} - {shiftToDelete.endTime}
                 </span>
               </p>
@@ -961,6 +967,7 @@ function EditShiftForm({ shift, onClose, theme }: { shift: Shift; onClose: () =>
     coworkers: shift.coworkers || '',
     notes: shift.notes || '',
   });
+  const [newCoworkers, setNewCoworkers] = useState(''); // New field for appending only
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -982,6 +989,12 @@ function EditShiftForm({ shift, onClose, theme }: { shift: Shift; onClose: () =>
   // Helper to convert 24-hour time to 12-hour for display
   const convertTo12Hour = (time24: string): string => {
     if (!time24) return '';
+    
+    // If already in 12-hour format (contains AM/PM), return as is
+    if (time24.includes('AM') || time24.includes('PM')) {
+      return time24;
+    }
+    
     const [hours, minutes] = time24.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -1009,6 +1022,15 @@ function EditShiftForm({ shift, onClose, theme }: { shift: Shift; onClose: () =>
     setError('');
 
     try {
+      // Append new coworkers to existing ones
+      let updatedCoworkers = formData.coworkers;
+      if (newCoworkers.trim()) {
+        const existingNames = formData.coworkers ? formData.coworkers.split(',').map(n => n.trim()).filter(n => n) : [];
+        const newNames = newCoworkers.split(',').map(n => n.trim()).filter(n => n);
+        const allNames = [...existingNames, ...newNames];
+        updatedCoworkers = allNames.join(', ');
+      }
+
       const response = await fetch(`/api/shifts/${shift.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -1016,7 +1038,7 @@ function EditShiftForm({ shift, onClose, theme }: { shift: Shift; onClose: () =>
           date: formData.date,
           startTime: convertTo12Hour(formData.startTime),
           endTime: convertTo12Hour(formData.endTime),
-          coworkers: formData.coworkers,
+          coworkers: updatedCoworkers,
           notes: formData.notes,
         }),
       });
@@ -1103,35 +1125,47 @@ function EditShiftForm({ shift, onClose, theme }: { shift: Shift; onClose: () =>
 
       <div>
         <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>
-          Coworkers (optional)
+          Add Coworkers (optional)
         </label>
         <div className={`text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-          Enter names separated by commas (e.g., John, Jane, Mike)
+          Enter names to add, separated by commas (e.g., John, Jane, Mike)
         </div>
         <input
           type="text"
-          value={formData.coworkers}
-          onChange={(e) => setFormData(prev => ({ ...prev, coworkers: e.target.value }))}
-          placeholder="John, Jane, Mike"
+          value={newCoworkers}
+          onChange={(e) => setNewCoworkers(e.target.value)}
+          placeholder="Add new coworkers..."
           className={`w-full px-3 py-2 border rounded-xl sm:rounded-4xl focus:outline-none focus:ring-2 focus:ring-purple-200 ${
             theme === 'dark' ? 'text-white bg-gray-700' : 'text-gray-800 bg-white'
           }`}
           style={{ borderColor: theme === 'dark' ? '#555' : '#C8A5FF' }}
         />
         {formData.coworkers && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {formData.coworkers.split(',').filter(name => name.trim()).map((name, idx) => (
-              <span 
-                key={idx}
-                className={`px-2 py-1 rounded-lg text-xs ${
-                  theme === 'dark' 
-                    ? 'bg-purple-900 text-purple-200' 
-                    : 'bg-purple-100 text-purple-700'
-                }`}
-              >
-                {name.trim()}
-              </span>
-            ))}
+          <div className="mt-2">
+            <div className={`text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              Current coworkers: {formData.coworkers.split(',').filter(n => n.trim()).length} person(s)
+            </div>
+          </div>
+        )}
+        {newCoworkers && (
+          <div className="mt-2">
+            <div className={`text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              Adding:
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {newCoworkers.split(',').filter(name => name.trim()).map((name, idx) => (
+                <span 
+                  key={idx}
+                  className={`px-2 py-1 rounded-lg text-xs ${
+                    theme === 'dark' 
+                      ? 'bg-green-900 text-green-200' 
+                      : 'bg-green-100 text-green-700'
+                  }`}
+                >
+                  {name.trim()}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>

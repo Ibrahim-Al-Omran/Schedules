@@ -14,7 +14,7 @@ export default function LoadingSpinner({ size = 'md', className = '' }: { size?:
     <div className={`flex items-center justify-center ${className}`}>
       <div 
         className={`${sizeClasses[size]} animate-spin rounded-full border-2 border-t-purple-600`}
-        style={{ borderColor: theme === 'dark' ? '#444443' : '#D1D5DB', borderTopColor: '#9333EA' }}
+        style={{ borderColor: theme === 'dark' ? '#1A1A1A' : '#D1D5DB', borderTopColor: '#9333EA' }}
       ></div>
     </div>
   );
@@ -23,7 +23,7 @@ export default function LoadingSpinner({ size = 'md', className = '' }: { size?:
 export function PageLoader() {
   const { theme } = useTheme();
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? '#000000' : 'white' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? '#1A1A1A' : 'white' }}>
       <div className="text-center">
         <LoadingSpinner size="lg" />
         <p className="mt-4" style={{ color: theme === 'dark' ? 'white' : '#4B5563' }}>Loading...</p>
@@ -38,7 +38,7 @@ export function SectionLoader({ message = "Loading..." }: { message?: string }) 
     <div className="flex items-center justify-center py-8">
       <div className="text-center">
         <LoadingSpinner />
-        <p className="mt-2 text-sm" style={{ color: theme === 'dark' ? 'white' : '#6B7280' }}>{message}</p>
+        <p className="mt-2 text-sm" style={{ color: theme === 'dark' ? 'white' : '#1A1A1A' }}>{message}</p>
       </div>
     </div>
   );
