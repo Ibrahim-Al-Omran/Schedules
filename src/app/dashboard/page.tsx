@@ -251,6 +251,8 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      // Clear session storage so user gets redirected to dashboard on next login
+      sessionStorage.removeItem('hasVisitedHome');
       router.push('/login');
       router.refresh();
     } catch (error) {

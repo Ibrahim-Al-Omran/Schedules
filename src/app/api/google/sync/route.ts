@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Get user's Google access token using Supabase
     const user = await adminDb.users.findById(authUser.userId);
 
-    if (!user || !user.googleAccessToken) {
+    if (!user || !user.googleAccessToken || !user.googleRefreshToken) {
       return NextResponse.json(
         { error: 'Google Calendar not connected. Please connect your Google account first.' },
         { status: 400 }
@@ -65,7 +65,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const calendar = getGoogleCalendarClient(user.googleAccessToken);
+    // Create calendar client with token refresh callback
+    const calendar = getGoogleCalendarClient(
+      user.googleAccessToken, 
+      user.googleRefreshToken,
+      async (tokens) => {
+        // Save refreshed tokens to database
+        if (tokens.access_token) {
+          try {
+            await adminDb.users.update(authUser.userId, {
+              googleAccessToken: tokens.access_token,
+              // Only update refresh token if a new one was provided
+              ...(tokens.refresh_token && { googleRefreshToken: tokens.refresh_token })
+            });
+            console.log('Updated tokens in database for user:', authUser.userId);
+          } catch (error) {
+            console.error('Failed to save refreshed tokens:', error);
+          }
+        }
+      }
+    );
+    
     let createdEvents = 0;
     const errors: string[] = [];
 

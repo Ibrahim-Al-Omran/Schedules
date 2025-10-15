@@ -12,12 +12,23 @@ export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if user is authenticated
+    // Check if user is authenticated and redirect only on first visit
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           setIsAuthenticated(true);
+          
+          // Only redirect to dashboard if this is the initial page load (not a direct visit)
+          // Use sessionStorage to track if user has already been redirected this session
+          const hasVisitedHome = sessionStorage.getItem('hasVisitedHome');
+          
+          if (!hasVisitedHome) {
+            // First visit this session - redirect to dashboard
+            sessionStorage.setItem('hasVisitedHome', 'true');
+            router.push('/dashboard');
+          }
+          // If hasVisitedHome is true, user came back to home page intentionally, so don't redirect
         } else {
           setIsAuthenticated(false);
         }
@@ -49,9 +60,9 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen relative overflow-hidden" style={{ backgroundColor: bgColor, color: textColor }}>
-      {/* Large Background Logo with Breathing Border Glow - Left Side */}
+      {/* Large Background Logo with Breathing Border Glow - Left Side - Hidden on Mobile */}
       <div 
-        className="absolute top-1/2 left-0 -translate-x-1/3 -translate-y-1/2 pointer-events-none"
+        className="hidden md:block absolute top-1/2 left-0 -translate-x-1/3 -translate-y-1/2 pointer-events-none"
         style={{
           width: '1400px',
           height: '1400px',
@@ -265,15 +276,15 @@ export default function HomePage() {
           ) : (
             <div className="flex gap-4 justify-center">
               <Link 
-                href="/login"
-                className="inline-block px-8 py-3 rounded-2xl sm:rounded-4xl font-semibold text-white transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-105 hover:shadow-lg"
+                href="/login?mode=register"
+                className="button-hover-effect inline-block px-8 py-3 rounded-2xl sm:rounded-4xl font-semibold text-white hover:shadow-[0_0_30px_rgba(179,136,255,0.6)]"
                 style={{ backgroundColor: accentColor }}
               >
                 Get Started
               </Link>
               <Link 
                 href="/login"
-                className="inline-block px-8 py-3 rounded-2xl sm:rounded-4xl font-semibold transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-105 hover:shadow-lg"
+                className="button-hover-effect inline-block px-8 py-3 rounded-2xl sm:rounded-4xl font-semibold hover:shadow-[0_0_30px_rgba(179,136,255,0.4)] hover:bg-[rgba(179,136,255,0.1)]"
                 style={{ 
                   border: `2px solid ${accentColor}`, 
                   color: accentColor 
@@ -525,8 +536,8 @@ export default function HomePage() {
             Join Schedules today and take control of your work schedule
           </p>
           <Link 
-            href="/login"
-            className="inline-block px-10 py-4 rounded-2xl sm:rounded-4xl font-semibold text-white text-lg transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-105 hover:shadow-lg"
+            href="/login?mode=register"
+            className="button-hover-effect inline-block px-10 py-4 rounded-2xl sm:rounded-4xl font-semibold text-white text-lg hover:shadow-[0_0_40px_rgba(179,136,255,0.7)]"
             style={{ backgroundColor: accentColor }}
           >
             Create Your Account
@@ -584,6 +595,24 @@ export default function HomePage() {
           50% {
             opacity: 1;
           }
+        }
+
+        @keyframes buttonHover {
+          0% {
+            transform: translateY(0);
+          }
+          100% {
+            transform: translateY(-8px);
+          }
+        }
+
+        .button-hover-effect {
+          animation: none;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .button-hover-effect:hover {
+          animation: buttonHover 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
       `}</style>
     </main>

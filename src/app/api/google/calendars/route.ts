@@ -17,11 +17,30 @@ export async function GET(request: NextRequest) {
     // Get user's Google access token
     const user = await adminDb.users.findById(authUser.userId);
 
-    if (!user || !user.googleAccessToken) {
+    if (!user || !user.googleAccessToken || !user.googleRefreshToken) {
       return NextResponse.json({ error: 'Google Calendar not connected.' }, { status: 400 });
     }
 
-    const calendar = getGoogleCalendarClient(user.googleAccessToken, user.googleRefreshToken);
+    // Create calendar client with token refresh callback
+    const calendar = getGoogleCalendarClient(
+      user.googleAccessToken, 
+      user.googleRefreshToken,
+      async (tokens) => {
+        // Save refreshed tokens to database
+        if (tokens.access_token) {
+          try {
+            await adminDb.users.update(authUser.userId, {
+              googleAccessToken: tokens.access_token,
+              ...(tokens.refresh_token && { googleRefreshToken: tokens.refresh_token })
+            });
+            console.log('Updated tokens in database for user:', authUser.userId);
+          } catch (error) {
+            console.error('Failed to save refreshed tokens:', error);
+          }
+        }
+      }
+    );
+    
     const { data } = await calendar.calendarList.list();
 
     if (!data.items) {

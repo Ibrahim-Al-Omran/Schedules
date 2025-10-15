@@ -61,7 +61,7 @@ function getRedirectUri(): string {
   return `${getBaseUrl()}/api/google/callback`;
 }
 
-export function getGoogleCalendarClient(authToken: string, refreshToken?: string) {
+export function getGoogleCalendarClient(authToken: string, refreshToken?: string, onTokensRefreshed?: (tokens: { access_token?: string | null; refresh_token?: string | null }) => void) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -73,7 +73,33 @@ export function getGoogleCalendarClient(authToken: string, refreshToken?: string
     refresh_token: refreshToken
   });
 
+  // Enable automatic token refresh and callback
+  if (onTokensRefreshed) {
+    oauth2Client.on('tokens', (tokens) => {
+      console.log('New tokens received:', { 
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token 
+      });
+      onTokensRefreshed(tokens);
+    });
+  }
+
   return google.calendar({ version: 'v3', auth: oauth2Client });
+}
+
+export function getOAuth2Client(authToken: string, refreshToken?: string) {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    getRedirectUri()
+  );
+  
+  oauth2Client.setCredentials({ 
+    access_token: authToken,
+    refresh_token: refreshToken
+  });
+
+  return oauth2Client;
 }
 
 export function getGoogleOAuth2Client() {
