@@ -95,18 +95,34 @@ export default function DashboardPage() {
     // Check for Google Calendar connection status from URL params
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('google_connected') === 'true') {
+      // Show loading state while connecting
+      setLoading(true);
+      setFeedbackMessage('Finalizing Google Calendar connection...');
+      
       // Clear auth cache to force fresh data from server
       clearCache('auth-status');
-      setGoogleConnected(true);
-      setFeedbackMessage('Google Calendar connected successfully!');
-      setTimeout(() => setFeedbackMessage(null), 3000);
+      
       // Clean up URL params
       window.history.replaceState({}, '', '/dashboard');
       
-      // Force refresh auth data to get updated Google connection status
-      setTimeout(() => {
-        checkAuth();
-      }, 500);
+      // Force refresh auth data and fetch calendars
+      const finalizeConnection = async () => {
+        try {
+          await checkAuth();
+          setGoogleConnected(true);
+          await fetchCalendars();
+          setFeedbackMessage('Google Calendar connected successfully!');
+          setTimeout(() => setFeedbackMessage(null), 3000);
+        } catch (error) {
+          console.error('Error finalizing connection:', error);
+          setFeedbackMessage('Connected, but failed to load calendars. Please refresh.');
+          setTimeout(() => setFeedbackMessage(null), 3000);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      finalizeConnection();
     } else if (urlParams.get('google_error')) {
       setFeedbackMessage('Failed to connect Google Calendar. Please try again.');
       setTimeout(() => setFeedbackMessage(null), 3000);
@@ -316,24 +332,41 @@ export default function DashboardPage() {
   };
 
   const handleDisconnectGoogleCalendar = async () => {
+    // Optimistic UI: Disconnect immediately
+    const wasConnected = googleConnected;
+    setGoogleConnected(false);
+    setCalendars([]);
+    setSelectedCalendar(null);
+    setFeedbackMessage('Google Calendar disconnected successfully');
+    setTimeout(() => setFeedbackMessage(null), 3000);
+
+    // Actual disconnect in background
     try {
       const response = await fetch('/api/google/disconnect', {
         method: 'POST',
       });
 
-      if (response.ok) {
-        setGoogleConnected(false);
-        setFeedbackMessage('Google Calendar disconnected successfully');
-        setTimeout(() => setFeedbackMessage(null), 3000);
-      } else {
+      if (!response.ok) {
+        // If disconnect fails, restore connection state
+        setGoogleConnected(wasConnected);
         const errorData = await response.json();
         setFeedbackMessage(errorData.error || 'Failed to disconnect Google Calendar');
         setTimeout(() => setFeedbackMessage(null), 3000);
+        // Reload calendars if reconnecting
+        if (wasConnected) {
+          fetchCalendars();
+        }
       }
     } catch (error) {
+      // If disconnect fails, restore connection state
       console.error('Error disconnecting Google Calendar:', error);
+      setGoogleConnected(wasConnected);
       setFeedbackMessage('Failed to disconnect Google Calendar');
       setTimeout(() => setFeedbackMessage(null), 3000);
+      // Reload calendars if reconnecting
+      if (wasConnected) {
+        fetchCalendars();
+      }
     }
   };
 
@@ -514,7 +547,7 @@ export default function DashboardPage() {
                   }}
                 >
                   {googleConnecting && (
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ color: theme === 'dark' ? '#FF8C00' : '#000000' }}>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ color: '#FFFFFF' }}>
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -552,7 +585,7 @@ export default function DashboardPage() {
             backgroundColor: '#E7D8FF', 
             borderColor: theme === 'dark' ? '#666' : '#C8A5FF'
           }}>
-            <p className="text-center text-sm sm:text-base" style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}>{feedbackMessage}</p>
+            <p className="text-center text-sm sm:text-base" style={{ color: '#000000' }}>{feedbackMessage}</p>
           </div>
         )}
         
