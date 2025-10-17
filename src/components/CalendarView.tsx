@@ -74,9 +74,14 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
     };
   }, [modalContent, shiftToDelete, shiftToEdit, selectedDay]);
 
-  // Get today's date in local timezone
+  // Get today's date in local timezone (not UTC)
   const today = new Date();
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  // Helper function to format date to local YYYY-MM-DD string
+  const formatLocalDate = (date: Date): string => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
 
   // Generate calendar days for month view
   const generateCalendarDays = (): CalendarDay[] => {
@@ -100,7 +105,7 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
     const currentDay = new Date(startDate);
     
     while (currentDay <= endDate) {
-      const dateStr = currentDay.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(currentDay);
       const dayShifts = shifts.filter(shift => shift.date === dateStr);
       const dayMonth = currentDay.getMonth();
       
@@ -127,7 +132,7 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(date);
       const dayShifts = shifts.filter(shift => shift.date === dateStr);
       
       days.push({
@@ -174,10 +179,20 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
     setTimeout(() => {
       setCurrentDate(prev => {
         const newDate = new Date(prev);
-        if (direction === 'prev') {
-          newDate.setMonth(newDate.getMonth() - 1);
+        if (viewMode === 'week') {
+          // For week view, navigate by 7 days
+          if (direction === 'prev') {
+            newDate.setDate(newDate.getDate() - 7);
+          } else {
+            newDate.setDate(newDate.getDate() + 7);
+          }
         } else {
-          newDate.setMonth(newDate.getMonth() + 1);
+          // For month view, navigate by month
+          if (direction === 'prev') {
+            newDate.setMonth(newDate.getMonth() - 1);
+          } else {
+            newDate.setMonth(newDate.getMonth() + 1);
+          }
         }
         return newDate;
       });
@@ -546,7 +561,12 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
       <div className="flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
         <h2 className="text-lg sm:text-xl md:text-2xl font-semibold" style={{ color: theme === 'dark' ? '#FFFFFF' : '#1F2937' }}>
           <span style={{ color: theme === 'dark' ? '#FFFFFF' : '#1F2937' }}>
-            {viewMode === 'week' ? 'Week of ' : ''}{monthNames[currentDate.getMonth()]} {viewMode === 'week' && currentDate.getDate() + ', '}{currentDate.getFullYear()}
+            {viewMode === 'week' ? (() => {
+              // Get the Sunday of the current week
+              const sunday = new Date(currentDate);
+              sunday.setDate(currentDate.getDate() - currentDate.getDay());
+              return `Week of ${monthNames[sunday.getMonth()]} ${sunday.getDate()}, ${sunday.getFullYear()}`;
+            })() : `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
           </span>
         </h2>
         <div className="flex items-center space-x-2 sm:space-x-3">
