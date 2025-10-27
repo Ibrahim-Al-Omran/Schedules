@@ -679,6 +679,34 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Footer */}
+      <footer className="border-t py-8 px-8 text-center mt-20" style={{ borderColor: theme === 'dark' ? '#333' : '#E5E7EB' }}>
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-4">
+            <a 
+              href="/privacy" 
+              className="hover:underline transition-colors"
+              style={{ color: '#B388FF' }}
+            >
+              Privacy Policy
+            </a>
+            <span style={{ color: theme === 'dark' ? '#666' : '#9CA3AF' }}>•</span>
+            <a 
+              href="https://github.com/Ibrahim-Al-Omran/Schedules" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:underline transition-colors"
+              style={{ color: '#B388FF' }}
+            >
+              GitHub
+            </a>
+          </div>
+          <p className="text-sm" style={{ color: theme === 'dark' ? '#666' : '#9CA3AF' }}>
+            © {new Date().getFullYear()} Schedules. All rights reserved.
+          </p>
+        </div>
+      </footer>
+
       {/* Add Shift Modal */}
       {showAddForm && (
         <div 

@@ -545,6 +545,34 @@ export default function HomePage() {
         </section>
       )}
 
+      {/* Footer with Privacy Policy Link */}
+      <footer className="border-t py-8 px-8 text-center mt-20" style={{ borderColor: theme === 'dark' ? '#333' : '#E5E7EB' }}>
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-4">
+            <Link 
+              href="/privacy" 
+              className="hover:underline transition-colors"
+              style={{ color: accentColor }}
+            >
+              Privacy Policy
+            </Link>
+            <span style={{ color: secondaryTextColor }}>•</span>
+            <a 
+              href="https://github.com/Ibrahim-Al-Omran/Schedules" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:underline transition-colors"
+              style={{ color: accentColor }}
+            >
+              GitHub
+            </a>
+          </div>
+          <p className="text-sm" style={{ color: secondaryTextColor }}>
+            © {new Date().getFullYear()} Schedules. All rights reserved.
+          </p>
+        </div>
+      </footer>
+
       <style jsx>{`
         @keyframes fadeIn {
           from {
