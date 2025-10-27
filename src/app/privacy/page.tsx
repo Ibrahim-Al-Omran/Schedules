@@ -71,7 +71,7 @@ export default function PrivacyPolicy() {
             </a> page, or by disconnecting within the Schedules app settings.
           </p>
           <p className="mb-4" style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}>
-            <strong>Schedules' use and transfer of information received from Google APIs adheres to the 
+            <strong>Schedules&apos; use and transfer of information received from Google APIs adheres to the 
             <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="hover:underline ml-1" style={{ color: '#C8A5FF' }}>
               Google API Services User Data Policy
             </a>, including the Limited Use requirements.</strong>

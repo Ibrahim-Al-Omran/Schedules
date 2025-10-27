@@ -35,7 +35,6 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
   const [modalContent, setModalContent] = useState<React.ReactElement | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
   const [shiftToEdit, setShiftToEdit] = useState<Shift | null>(null);
   const [draggedShift, setDraggedShift] = useState<Shift | null>(null);
@@ -175,7 +174,6 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
   }, [currentDate, viewMode]); // Only animate on month/view change, not shifts
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setIsTransitioning(true);
     setTimeout(() => {
       setCurrentDate(prev => {
         const newDate = new Date(prev);
@@ -196,7 +194,6 @@ export default function CalendarView({ shifts, onDeleteShift, onUpdateShift }: C
         }
         return newDate;
       });
-      setIsTransitioning(false);
     }, 100);
   };
 

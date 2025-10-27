@@ -54,9 +54,6 @@ export default function HomePage() {
   const textColor = theme === 'dark' ? '#ffffff' : '#000000';
   const secondaryTextColor = theme === 'dark' ? '#c0c0c0' : '#666666';
   const accentColor = '#B388FF'; // Brighter neon purple
-  const cardBg = theme === 'dark' 
-    ? 'rgba(40, 40, 40, 0.4)' // Grey translucent to show glow
-    : 'rgba(255, 255, 255, 0.7)';
 
   return (
     <main className="min-h-screen relative overflow-hidden" style={{ backgroundColor: bgColor, color: textColor }}>
