@@ -65,7 +65,7 @@ export default function PrivacyPolicy() {
             <li style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}>Calendar access tokens are stored securely and encrypted in our database</li>
           </ul>
           <p className="mb-4" style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}>
-            You can revoke Schedules' access to your Google Calendar at any time by visiting your 
+            You can revoke Schedules&apos; access to your Google Calendar at any time by visiting your 
             <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="hover:underline ml-1" style={{ color: '#C8A5FF' }}>
               Google Account Permissions
             </a> page, or by disconnecting within the Schedules app settings.
