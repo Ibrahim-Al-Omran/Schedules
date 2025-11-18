@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CalendarView from '@/components/CalendarView';
 import ShiftForm from '@/components/ShiftForm';
+import PayDisplay from '@/components/PayDisplay';
 import { Shift } from '@/types/shift';
 import { AuthUser } from '@/types/user';
 import { debounceRequest } from '@/lib/debounce';
@@ -28,6 +29,7 @@ export default function DashboardPage() {
   const [googleSyncing, setGoogleSyncing] = useState(false);
   const [calendars, setCalendars] = useState<Array<{ id: string; summary: string }>>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
+  const [payRefreshTrigger, setPayRefreshTrigger] = useState(0);
   const addFormRef = useRef<HTMLDivElement>(null);
   const calendarCardRef = useRef<HTMLDivElement>(null);
 
@@ -205,12 +207,14 @@ export default function DashboardPage() {
   const handleShiftAdded = (newShift: Shift) => {
     setShifts(prev => [newShift, ...prev]);
     setShowAddForm(false);
+    setPayRefreshTrigger(prev => prev + 1);
   };
 
   const handleDeleteShift = async (shiftId: string) => {
     // Optimistic UI: Remove shift immediately from UI
     const deletedShift = shifts.find(shift => shift.id === shiftId);
     setShifts(prev => prev.filter(shift => shift.id !== shiftId));
+    setPayRefreshTrigger(prev => prev + 1);
     setFeedbackMessage('Shift deleted successfully');
     setTimeout(() => setFeedbackMessage(null), 3000);
 
@@ -246,6 +250,7 @@ export default function DashboardPage() {
         shift.id === shiftId ? updatedShift : shift
       )
     );
+    setPayRefreshTrigger(prev => prev + 1);
   };
 
   const handleLogout = async () => {
@@ -677,6 +682,15 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Pay Summary - Below Google Calendar */}
+        <PayDisplay 
+          refreshTrigger={payRefreshTrigger} 
+          onSettingsUpdated={() => {
+            fetchShifts();
+            setPayRefreshTrigger(prev => prev + 1);
+          }} 
+        />
       </div>
 
       {/* Footer */}

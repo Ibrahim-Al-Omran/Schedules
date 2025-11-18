@@ -57,9 +57,14 @@ export const adminDb = {
     },
 
     async create(userData: { name: string; email: string; password: string }) {
+      const now = new Date().toISOString();
       const { data, error } = await supabaseAdmin
         .from('User')
-        .insert(userData)
+        .insert({
+          ...userData,
+          createdAt: now,
+          updatedAt: now
+        })
         .select()
         .single();
       
